@@ -17,10 +17,10 @@ class TMMMover(_PluginBase):
 
     plugin_name = "TMM 元数据转移助手"
     plugin_desc = "根据 TMM NFO 元数据自动分拣并跨挂载点迁移媒体目录"
-    plugin_version = "1.1.2"
+    plugin_version = "1.1.3"
     plugin_author = "QB"
     author_url = "https://github.com/TimeStandStill/MoviePilot-Plugins"
-    plugin_icon = "https://raw.githubusercontent.com/jxxghp/MoviePilot/main/app.ico"
+    plugin_icon = "https://github.com/TimeStandStill/MoviePilot-Plugins/blob/main/Gemini_Generated_Image_6wo4py6wo4py6wo4.png"
     plugin_order = 66
 
     # 固定剧集分类目录
