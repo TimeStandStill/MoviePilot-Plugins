@@ -1,4 +1,5 @@
 import shutil
+import threading
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -16,7 +17,7 @@ class TMMMover(_PluginBase):
 
     plugin_name = "TMM 元数据转移助手"
     plugin_desc = "根据 TMM NFO 元数据自动分拣并跨挂载点迁移媒体目录"
-    plugin_version = "1.1.1"
+    plugin_version = "1.1.2"
     plugin_author = "QB"
     author_url = "https://github.com/TimeStandStill/MoviePilot-Plugins"
     plugin_icon = "https://raw.githubusercontent.com/jxxghp/MoviePilot/main/app.ico"
@@ -274,20 +275,21 @@ class TMMMover(_PluginBase):
 
     def api_run_once(self) -> Dict[str, Any]:
         """
-        供前端页面调用的手动触发接口
+        供前端页面调用的手动触发接口 (使用后台线程防止网页等待超时)
         """
-        logger.info("【TMM转移助手】收到手动运行指令，准备执行...")
+        logger.info("【TMM转移助手】收到手动运行指令，正在后台启动任务...")
         try:
-            result = self.run_once()
+            # 开启独立线程运行核心逻辑，立刻向前端返回成功消息
+            threading.Thread(target=self.run_once, daemon=True).start()
             return {
                 "code": 0,
-                "msg": result
+                "msg": "✅ 任务已在后台启动，详细进度请前往【系统日志】查看！"
             }
         except Exception as e:
-            logger.error(f"【TMM转移助手】执行异常: {str(e)}", exc_info=True)
+            logger.error(f"【TMM转移助手】启动任务异常: {str(e)}", exc_info=True)
             return {
                 "code": 1,
-                "msg": f"执行失败: {str(e)}"
+                "msg": f"启动失败: {str(e)}"
             }
 
     def run_once(self) -> str:
@@ -299,7 +301,7 @@ class TMMMover(_PluginBase):
             logger.warning(f"【TMM转移助手】{msg}")
             return msg
 
-        logger.info(f"【TMM转移助手】开始扫描源目录...")
+        logger.info(f"【TMM转移助手】=== 开始执行后台扫描任务 ===")
         movie_moved, movie_skipped, movie_err = self._scan_source_dir(self._source_movie_path, "movie")
         series_moved, series_skipped, series_err = self._scan_source_dir(self._source_series_path, "series")
 
@@ -307,7 +309,7 @@ class TMMMover(_PluginBase):
         total_skipped = movie_skipped + series_skipped
         total_err = movie_err + series_err
         
-        summary = f"执行完成！成功: {total_moved} 个，跳过未刮削/已存在: {total_skipped} 个，失败: {total_err} 个。"
+        summary = f"后台任务执行完成！成功: {total_moved} 个，跳过未刮削/已存在: {total_skipped} 个，失败: {total_err} 个。"
         logger.info(f"【TMM转移助手】{summary}")
         return summary
 
@@ -376,8 +378,12 @@ class TMMMover(_PluginBase):
 
     def _resolve_series_category_name(self, meta_values: List[str]) -> str:
         normalized_values = [value.lower() for value in meta_values]
+        
+        # 匹配规则列表（优先级从上到下）
         category_rules = [
-            ("anime", ["动漫", "动画", "anime", "animation"]),
+            # 动漫拥有最高绝对优先级：只要出现这些字眼，无视其他国家或类型标签，统统归入【动漫】
+            ("anime", ["动漫", "动画", "anime", "animation", "卡通", "cartoon"]),
+            # 其他分类
             ("shortdrama", ["短剧", "微短剧", "短片"]),
             ("documentary", ["纪录片", "纪录", "documentary"]),
             ("variety", ["综艺", "真人秀", "脱口秀", "variety", "reality"]),
@@ -391,6 +397,7 @@ class TMMMover(_PluginBase):
             if any(keyword.lower() in val for val in normalized_values for keyword in keywords):
                 return self.SERIES_CATEGORIES[category_key]
                 
+        # 所有规则都没匹配到，默认兜底
         return self.SERIES_CATEGORIES["mainland"]
 
     def _extract_tvshow_meta(self, tvshow_nfo: Path) -> List[str]:
