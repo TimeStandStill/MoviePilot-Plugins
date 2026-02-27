@@ -13,20 +13,17 @@ from app.plugins import _PluginBase
 class TMMMover(_PluginBase):
     """
     TMM 元数据智能转移助手
-    - 定时扫描来源目录一级子目录
-    - 识别 movie.nfo / tvshow.nfo 判断媒体类型
-    - 剧集根据 country/genre 路由到细分目录
-    - 使用 shutil.move 进行跨挂载点安全迁移
     """
 
-    plugin_name = "TMM 元数据智能转移助手"
-    plugin_desc = "根据 TMM NFO 元数据自动分拣并跨挂载点安全迁移媒体目录"
-    plugin_version = "1.0.4"
-    plugin_author = "MoviePilot"
-    author_url = "https://github.com/jxxghp/MoviePilot"
+    plugin_name = "TMM 元数据转移助手"
+    plugin_desc = "根据 TMM NFO 元数据自动分拣并跨挂载点迁移媒体目录"
+    plugin_version = "1.0.5"
+    plugin_author = "QB"
+    author_url = "https://github.com/TimeStandStill/MoviePilot-Plugins"
     plugin_icon = "https://raw.githubusercontent.com/jxxghp/MoviePilot/main/app.ico"
     plugin_order = 66
-    # 固定剧集分类目录（按你的目录结构）
+
+    # 固定剧集分类目录
     SERIES_CATEGORIES = {
         "mainland": "大陆剧集",
         "anime": "动漫",
@@ -64,9 +61,7 @@ class TMMMover(_PluginBase):
         self._enabled = bool(movie_ready or series_ready)
 
         logger.info(
-            f"{self.plugin_name} 配置已加载: source_movie={self._source_movie_path}, "
-            f"source_series={self._source_series_path}, movie={self._default_movie_path}, "
-            f"series={self._default_series_path}, cron={self._cron}"
+            f"{self.plugin_name} 配置已加载: movie_ready={movie_ready}, series_ready={series_ready}, cron={self._cron}"
         )
 
     def get_state(self) -> bool:
@@ -74,25 +69,33 @@ class TMMMover(_PluginBase):
 
     @staticmethod
     def get_command() -> List[Dict[str, Any]]:
-        return []
+        """
+        定义插件卡片上的快捷命令按钮
+        """
+        return [{
+            "cmd": "/api/v1/plugin/TMMMover/run",
+            "method": "post",
+            "text": "立即运行",
+            "icon": "mdi-play",
+            "color": "primary"
+        }]
 
     def get_api(self) -> List[Dict[str, Any]]:
         """
-        提供手动触发接口
+        提供外部与命令调用的 API 接口
         """
         return [
             {
                 "path": "/run",
                 "endpoint": self.api_run_once,
                 "methods": ["POST"],
-                "summary": "手动触发一次 TMMMover 任务",
-                "description": "立即扫描来源目录并执行迁移任务"
+                "summary": "手动触发一次 TMMMover 任务"
             }
         ]
 
     def get_form(self) -> Tuple[Optional[List[dict]], Dict[str, Any]]:
         """
-        插件配置表单（Vuetify）
+        插件配置表单（Vuetify），移除硬编码的 JS 按钮
         """
         form = [
             {
@@ -109,11 +112,10 @@ class TMMMover(_PluginBase):
                                         "component": "VPathField",
                                         "props": {
                                             "model": "source_movie_path",
-                                            "label": "电影来源监控目录（Movies Source Path）",
+                                            "label": "电影来源监控目录",
                                             "placeholder": "/media/source/Movies",
-                                            "hint": "仅遍历该目录下一级子目录，自动忽略 .deletedByTMM",
-                                            "persistent-hint": True,
-                                            "storage": "local"
+                                            "hint": "包含 movie.nfo 的一级子目录",
+                                            "persistent-hint": True
                                         }
                                     }
                                 ]
@@ -126,11 +128,10 @@ class TMMMover(_PluginBase):
                                         "component": "VPathField",
                                         "props": {
                                             "model": "source_series_path",
-                                            "label": "剧集来源监控目录（Series Source Path）",
+                                            "label": "剧集来源监控目录",
                                             "placeholder": "/media/source/Series",
-                                            "hint": "仅遍历该目录下一级子目录，自动忽略 .deletedByTMM",
-                                            "persistent-hint": True,
-                                            "storage": "local"
+                                            "hint": "包含 tvshow.nfo 的一级子目录",
+                                            "persistent-hint": True
                                         }
                                     }
                                 ]
@@ -143,9 +144,8 @@ class TMMMover(_PluginBase):
                                         "component": "VPathField",
                                         "props": {
                                             "model": "default_movie_path",
-                                            "label": "默认电影目录（Default Movie Path）",
-                                            "placeholder": "/media/movies",
-                                            "storage": "local"
+                                            "label": "目标电影存放目录",
+                                            "placeholder": "/media/movies"
                                         }
                                     }
                                 ]
@@ -158,9 +158,10 @@ class TMMMover(_PluginBase):
                                         "component": "VPathField",
                                         "props": {
                                             "model": "default_series_path",
-                                            "label": "默认剧集目录（Default Series Path）",
+                                            "label": "目标剧集存放根目录",
                                             "placeholder": "/media/series",
-                                            "storage": "local"
+                                            "hint": "插件会在该目录下自动创建分类子目录（如：动漫、大陆剧集等）",
+                                            "persistent-hint": True
                                         }
                                     }
                                 ]
@@ -175,24 +176,6 @@ class TMMMover(_PluginBase):
                                             "model": "cron",
                                             "label": "定时执行 Cron 表达式",
                                             "placeholder": "0 */6 * * *",
-                                            "hint": "标准 crontab 格式（分 时 日 月 周）",
-                                            "persistent-hint": True
-                                        }
-                                    }
-                                ]
-                            },
-                            {
-                                "component": "VCol",
-                                "props": {"cols": 12},
-                                "content": [
-                                    {
-                                        "component": "VBtn",
-                                        "props": {
-                                            "text": "立即运行一次",
-                                            "color": "primary",
-                                            "variant": "flat",
-                                            "prependIcon": "mdi-play-circle",
-                                            "onClick": "async function(){ try { const resp = await fetch('/api/v1/plugin/TMMMover/run', { method: 'POST', credentials: 'include' }); const data = await resp.json(); alert(data.message || '任务已触发'); } catch(e) { alert('触发失败，请查看控制台日志'); console.error(e); } }"
                                         }
                                     }
                                 ]
@@ -213,20 +196,13 @@ class TMMMover(_PluginBase):
         return form, model
 
     def get_page(self) -> Optional[List[dict]]:
-        """
-        插件详情页不展示内容。
-        日志统一通过系统日志查看（插件外部“查看日志”）。
-        """
         return None
 
     def get_service(self) -> List[Dict[str, Any]]:
         """
         注册定时任务
         """
-        if not self.get_state():
-            return []
-        if not self._cron:
-            logger.warning(f"{self.plugin_name} 未配置 cron，跳过任务注册")
+        if not self.get_state() or not self._cron:
             return []
 
         try:
@@ -238,123 +214,91 @@ class TMMMover(_PluginBase):
         return [
             {
                 "id": "scan_move_job",
-                "name": "TMM 元数据目录转移任务",
+                "name": "TMM 目录转移任务",
                 "trigger": trigger,
                 "func": self.run_once
             }
         ]
 
     def stop_service(self):
-        """
-        无额外后台线程，保留空实现
-        """
         pass
 
     def api_run_once(self) -> schemas.Response:
         """
-        手动触发一次任务
+        手动触发接口
         """
-        result = self.run_once()
-        return schemas.Response(success=True, message=result, data={})
+        try:
+            result = self.run_once()
+            return schemas.Response(success=True, message=result)
+        except Exception as e:
+            logger.error(f"{self.plugin_name} 执行异常: {str(e)}")
+            return schemas.Response(success=False, message=str(e))
 
     def run_once(self) -> str:
-        """
-        核心任务入口：扫描、分类、迁移、汇总通知
-        """
         if not self.get_state():
-            message = "插件未启用或关键配置缺失，任务未执行"
-            logger.warning(f"{self.plugin_name}：{message}")
-            return message
+            msg = "插件未完全配置，任务中止"
+            logger.warning(f"{self.plugin_name}: {msg}")
+            return msg
 
-        logger.info(f"{self.plugin_name}：开始执行扫描任务")
-        moved_count = 0
-        skipped_count = 0
-        error_count = 0
+        logger.info(f"{self.plugin_name}：开始扫描")
+        movie_moved, movie_skipped, movie_err = self._scan_source_dir(self._source_movie_path, "movie")
+        series_moved, series_skipped, series_err = self._scan_source_dir(self._source_series_path, "series")
 
-        movie_moved, movie_skipped, movie_error = self._scan_source_dir(
-            source_path=self._source_movie_path,
-            mode="movie"
-        )
-        series_moved, series_skipped, series_error = self._scan_source_dir(
-            source_path=self._source_series_path,
-            mode="series"
-        )
-
-        moved_count += movie_moved + series_moved
-        skipped_count += movie_skipped + series_skipped
-        error_count += movie_error + series_error
-
-        summary = f"任务完成：成功移动 {moved_count} 个，跳过 {skipped_count} 个，失败 {error_count} 个"
-        logger.info(f"{self.plugin_name}：{summary}")
-        self.systemmessage.put(message=summary, role="system", title=self.plugin_name)
+        total_moved = movie_moved + series_moved
+        total_err = movie_err + series_err
+        
+        summary = f"执行完成。成功: {total_moved}, 失败: {total_err}。详情请查阅系统日志。"
+        logger.info(f"{self.plugin_name}: {summary}")
         return summary
 
     def _scan_source_dir(self, source_path: str, mode: str) -> Tuple[int, int, int]:
-        """
-        扫描指定来源目录（Movies 或 Series），只遍历一级子目录
-        """
         if not source_path:
             return 0, 0, 0
 
         source_dir = Path(source_path)
         if not source_dir.exists() or not source_dir.is_dir():
-            logger.warning(f"{self.plugin_name} 来源目录不存在，跳过：{source_dir}")
+            logger.warning(f"{self.plugin_name} 来源目录无效: {source_dir}")
             return 0, 0, 0
 
-        moved_count = 0
-        skipped_count = 0
-        error_count = 0
+        moved, skipped, err = 0, 0, 0
 
         for child in source_dir.iterdir():
-            if not child.is_dir():
-                continue
-            # tmm 产生的回收目录，直接忽略
-            if self._is_deleted_by_tmm_dir(child):
-                logger.info(f"{self.plugin_name}：忽略目录 {child}")
+            if not child.is_dir() or self._is_deleted_by_tmm_dir(child):
                 continue
             try:
                 if self._process_one_folder(child, mode):
-                    moved_count += 1
+                    moved += 1
                 else:
-                    skipped_count += 1
+                    skipped += 1
             except Exception as e:
-                error_count += 1
-                logger.error(f"{self.plugin_name} 处理目录失败：{child}，错误：{str(e)}")
-        return moved_count, skipped_count, error_count
+                err += 1
+                logger.error(f"{self.plugin_name} 处理目录失败 {child}: {str(e)}")
+                
+        return moved, skipped, err
 
-    @staticmethod
-    def _is_deleted_by_tmm_dir(folder: Path) -> bool:
-        """
-        忽略 TMM 删除缓存目录 .deletedByTMM（兼容部分后缀命名）
-        """
+    def _is_deleted_by_tmm_dir(self, folder: Path) -> bool:
         name = folder.name.strip()
         return name == ".deletedByTMM" or name.endswith(".deletedByTMM")
 
     def _process_one_folder(self, folder: Path, mode: str) -> bool:
-        """
-        处理单个一级目录
-        """
         movie_nfo = folder / "movie.nfo"
         tvshow_nfo = folder / "tvshow.nfo"
 
-        # 兼容大小写文件名
+        # 解决大小写兼容问题
         if not movie_nfo.exists() and not tvshow_nfo.exists():
-            file_map = {f.name.lower(): f for f in folder.iterdir() if f.is_file()}
-            movie_nfo = file_map.get("movie.nfo", movie_nfo)
-            tvshow_nfo = file_map.get("tvshow.nfo", tvshow_nfo)
+            for f in folder.iterdir():
+                if f.is_file():
+                    if f.name.lower() == "movie.nfo":
+                        movie_nfo = f
+                    elif f.name.lower() == "tvshow.nfo":
+                        tvshow_nfo = f
 
         if mode == "movie":
             if not movie_nfo.exists():
                 return False
-            if not self._default_movie_path:
-                logger.warning(f"{self.plugin_name} 未配置默认电影目录，跳过：{folder}")
-                return False
             target_root = Path(self._default_movie_path)
         else:
             if not tvshow_nfo.exists():
-                return False
-            if not self._default_series_path:
-                logger.warning(f"{self.plugin_name} 未配置默认剧集目录，跳过：{folder}")
                 return False
             target_root = self._resolve_series_target_root(tvshow_nfo)
 
@@ -362,22 +306,12 @@ class TMMMover(_PluginBase):
         return self._safe_move_folder(folder, target_dir)
 
     def _resolve_series_target_root(self, tvshow_nfo: Path) -> Path:
-        """
-        剧集路由（固定规则，不走页面配置）：
-        1. 从 tvshow.nfo 提取 country / genre
-        2. 自动映射到固定分类目录
-        3. 未命中时回落到默认剧集目录/大陆剧集
-        """
         meta_values = self._extract_tvshow_meta(tvshow_nfo)
         category_name = self._resolve_series_category_name(meta_values)
         return Path(self._default_series_path) / category_name
 
     def _resolve_series_category_name(self, meta_values: List[str]) -> str:
-        """
-        根据内置分类规则匹配目标目录：
-        大陆剧集 / 动漫 / 短剧 / 港台剧集 / 纪录片 / 欧美剧集 / 日韩剧集 / 综艺
-        """
-        normalized_values = [value.lower() for value in (meta_values or [])]
+        normalized_values = [value.lower() for value in meta_values]
         category_rules = [
             ("anime", ["动漫", "动画", "anime", "animation"]),
             ("shortdrama", ["短剧", "微短剧", "短片"]),
@@ -390,23 +324,14 @@ class TMMMover(_PluginBase):
         ]
 
         for category_key, keywords in category_rules:
-            if self._contains_any_keyword(normalized_values, keywords):
+            if any(keyword.lower() in val for val in normalized_values for keyword in keywords):
                 return self.SERIES_CATEGORIES[category_key]
-        # 默认兜底：大陆剧集
+                
         return self.SERIES_CATEGORIES["mainland"]
 
-    @staticmethod
-    def _contains_any_keyword(values: List[str], keywords: List[str]) -> bool:
-        for value in values:
-            for keyword in keywords:
-                if keyword.lower() in value:
-                    return True
-        return False
-
-    @staticmethod
-    def _extract_tvshow_meta(tvshow_nfo: Path) -> List[str]:
+    def _extract_tvshow_meta(self, tvshow_nfo: Path) -> List[str]:
         """
-        从 tvshow.nfo 提取 <country> / <genre> 内容
+        提取 NFO 中的流派和国家信息 (已移除导致崩溃的 staticmethod)
         """
         values: List[str] = []
         try:
@@ -419,22 +344,18 @@ class TMMMover(_PluginBase):
                     if not text:
                         continue
                     parts = [
-                        p.strip()
-                        for p in text.replace("|", "/").replace(",", "/").replace("，", "/").split("/")
+                        p.strip() for p in text.replace("|", "/").replace(",", "/").replace("，", "/").split("/")
                         if p.strip()
                     ]
                     values.extend(parts)
         except Exception as e:
-            logger.error(f"解析 NFO 失败：{tvshow_nfo}，错误：{str(e)}")
+            logger.error(f"解析 NFO 失败 {tvshow_nfo}: {str(e)}")
             return []
+            
         return self._deduplicate(values)
 
-    @staticmethod
-    def _deduplicate(values: List[str]) -> List[str]:
-        """
-        列表去重并保持原顺序
-        """
-        uniq: List[str] = []
+    def _deduplicate(self, values: List[str]) -> List[str]:
+        uniq = []
         seen = set()
         for value in values:
             if value not in seen:
@@ -443,22 +364,18 @@ class TMMMover(_PluginBase):
         return uniq
 
     def _safe_move_folder(self, src_dir: Path, dst_dir: Path) -> bool:
-        """
-        跨挂载点安全移动目录（必须使用 shutil.move）
-        """
-        if not src_dir.exists() or not src_dir.is_dir():
-            logger.warning(f"{self.plugin_name} 源目录无效：{src_dir}")
-            return False
-
         if dst_dir.exists():
-            logger.warning(f"{self.plugin_name} 目标目录已存在，跳过：{dst_dir}")
+            logger.warning(f"{self.plugin_name} 目标目录已存在，跳过覆盖: {dst_dir}")
             return False
 
         dst_dir.parent.mkdir(parents=True, exist_ok=True)
         try:
             shutil.move(str(src_dir), str(dst_dir))
-            logger.info(f"{self.plugin_name} 已移动：{src_dir} -> {dst_dir}")
+            logger.info(f"{self.plugin_name} 成功移动: {src_dir.name}")
             return True
         except Exception as e:
-            logger.error(f"{self.plugin_name} 移动失败：{src_dir} -> {dst_dir}，错误：{str(e)}")
+            logger.error(f"{self.plugin_name} 移动失败 {src_dir.name}: {str(e)}")
+            # 尝试回滚（如果目标目录仅部分写入）
+            if dst_dir.exists() and src_dir.exists():
+                 logger.error(f"发生不完整迁移，请手动检查: {dst_dir}")
             return False
