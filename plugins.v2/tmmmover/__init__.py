@@ -13,13 +13,17 @@ from app.plugins import _PluginBase
 class TMMMover(_PluginBase):
     """
     TMM 元数据智能转移助手
+    - 定时扫描来源目录一级子目录
+    - 识别 movie.nfo / tvshow.nfo 判断媒体类型
+    - 剧集根据 country/genre 路由到细分目录
+    - 使用 shutil.move 进行跨挂载点安全迁移
     """
 
     plugin_name = "TMM 元数据转移助手"
     plugin_desc = "根据 TMM NFO 元数据自动分拣并跨挂载点迁移媒体目录"
-    plugin_version = "1.0.5"
-    plugin_author = "QB"
-    author_url = "https://github.com/TimeStandStill/MoviePilot-Plugins"
+    plugin_version = "1.0.6"
+    plugin_author = "MoviePilot"
+    author_url = "https://github.com/jxxghp/MoviePilot"
     plugin_icon = "https://raw.githubusercontent.com/jxxghp/MoviePilot/main/app.ico"
     plugin_order = 66
 
@@ -70,7 +74,7 @@ class TMMMover(_PluginBase):
     @staticmethod
     def get_command() -> List[Dict[str, Any]]:
         """
-        定义插件卡片上的快捷命令按钮
+        在插件列表页的卡片上提供快捷运行按钮
         """
         return [{
             "cmd": "/api/v1/plugin/TMMMover/run",
@@ -82,7 +86,7 @@ class TMMMover(_PluginBase):
 
     def get_api(self) -> List[Dict[str, Any]]:
         """
-        提供外部与命令调用的 API 接口
+        提供外部与前端命令调用的 API 接口
         """
         return [
             {
@@ -95,7 +99,7 @@ class TMMMover(_PluginBase):
 
     def get_form(self) -> Tuple[Optional[List[dict]], Dict[str, Any]]:
         """
-        插件配置表单（Vuetify），移除硬编码的 JS 按钮
+        插件配置表单（Vuetify）
         """
         form = [
             {
@@ -196,7 +200,58 @@ class TMMMover(_PluginBase):
         return form, model
 
     def get_page(self) -> Optional[List[dict]]:
-        return None
+        """
+        获取插件详情页面，展示手动运行按钮
+        """
+        return [
+            {
+                "component": "VCard",
+                "props": {"variant": "outlined", "class": "mb-4"},
+                "content": [
+                    {
+                        "component": "VCardText",
+                        "props": {"class": "pa-6 d-flex flex-column align-center"},
+                        "content": [
+                            {
+                                "component": "VIcon",
+                                "props": {
+                                    "icon": "mdi-folder-move", 
+                                    "size": "64", 
+                                    "color": "primary", 
+                                    "class": "mb-4"
+                                }
+                            },
+                            {
+                                "component": "div",
+                                "props": {"class": "text-h6 mb-2"},
+                                "text": "手动执行迁移任务",
+                            },
+                            {
+                                "component": "div",
+                                "props": {"class": "text-body-2 text-medium-emphasis mb-6 text-center"},
+                                "text": "点击下方按钮，立即扫描来源目录并执行 TMM 元数据分类与跨挂载点迁移操作。",
+                            },
+                            {
+                                "component": "VBtn",
+                                "props": {
+                                    "color": "primary",
+                                    "variant": "elevated",
+                                    "size": "large",
+                                    "prepend-icon": "mdi-rocket-launch",
+                                },
+                                "text": "立即运行",
+                                "events": {
+                                    "click": {
+                                        "api": "plugin/TMMMover/run",
+                                        "method": "post",
+                                    },
+                                },
+                            },
+                        ],
+                    },
+                ],
+            }
+        ]
 
     def get_service(self) -> List[Dict[str, Any]]:
         """
@@ -225,7 +280,7 @@ class TMMMover(_PluginBase):
 
     def api_run_once(self) -> schemas.Response:
         """
-        手动触发接口
+        供前端页面调用的手动触发接口
         """
         try:
             result = self.run_once()
@@ -235,19 +290,23 @@ class TMMMover(_PluginBase):
             return schemas.Response(success=False, message=str(e))
 
     def run_once(self) -> str:
+        """
+        核心执行逻辑
+        """
         if not self.get_state():
             msg = "插件未完全配置，任务中止"
             logger.warning(f"{self.plugin_name}: {msg}")
             return msg
 
-        logger.info(f"{self.plugin_name}：开始扫描")
+        logger.info(f"{self.plugin_name}：开始执行扫描任务")
         movie_moved, movie_skipped, movie_err = self._scan_source_dir(self._source_movie_path, "movie")
         series_moved, series_skipped, series_err = self._scan_source_dir(self._source_series_path, "series")
 
         total_moved = movie_moved + series_moved
+        total_skipped = movie_skipped + series_skipped
         total_err = movie_err + series_err
         
-        summary = f"执行完成。成功: {total_moved}, 失败: {total_err}。详情请查阅系统日志。"
+        summary = f"任务完成！成功转移: {total_moved}，跳过: {total_skipped}，失败: {total_err}。详情请查看系统日志。"
         logger.info(f"{self.plugin_name}: {summary}")
         return summary
 
@@ -257,7 +316,7 @@ class TMMMover(_PluginBase):
 
         source_dir = Path(source_path)
         if not source_dir.exists() or not source_dir.is_dir():
-            logger.warning(f"{self.plugin_name} 来源目录无效: {source_dir}")
+            logger.warning(f"{self.plugin_name} 来源目录无效，跳过: {source_dir}")
             return 0, 0, 0
 
         moved, skipped, err = 0, 0, 0
@@ -284,7 +343,7 @@ class TMMMover(_PluginBase):
         movie_nfo = folder / "movie.nfo"
         tvshow_nfo = folder / "tvshow.nfo"
 
-        # 解决大小写兼容问题
+        # 解决部分文件系统下的文件名大小写兼容问题
         if not movie_nfo.exists() and not tvshow_nfo.exists():
             for f in folder.iterdir():
                 if f.is_file():
@@ -331,7 +390,7 @@ class TMMMover(_PluginBase):
 
     def _extract_tvshow_meta(self, tvshow_nfo: Path) -> List[str]:
         """
-        提取 NFO 中的流派和国家信息 (已移除导致崩溃的 staticmethod)
+        提取 NFO 中的流派和国家信息
         """
         values: List[str] = []
         try:
@@ -365,17 +424,16 @@ class TMMMover(_PluginBase):
 
     def _safe_move_folder(self, src_dir: Path, dst_dir: Path) -> bool:
         if dst_dir.exists():
-            logger.warning(f"{self.plugin_name} 目标目录已存在，跳过覆盖: {dst_dir}")
+            logger.info(f"{self.plugin_name} 目标目录已存在，跳过覆盖: {dst_dir}")
             return False
 
         dst_dir.parent.mkdir(parents=True, exist_ok=True)
         try:
             shutil.move(str(src_dir), str(dst_dir))
-            logger.info(f"{self.plugin_name} 成功移动: {src_dir.name}")
+            logger.info(f"{self.plugin_name} 成功移动: {src_dir.name} -> {dst_dir.parent.name}")
             return True
         except Exception as e:
             logger.error(f"{self.plugin_name} 移动失败 {src_dir.name}: {str(e)}")
-            # 尝试回滚（如果目标目录仅部分写入）
             if dst_dir.exists() and src_dir.exists():
                  logger.error(f"发生不完整迁移，请手动检查: {dst_dir}")
             return False
