@@ -3,12 +3,13 @@
     "name": "TMM 元数据智能转移助手",
     "description": "根据 TMM NFO 元数据自动分拣并跨挂载点安全迁移媒体目录",
     "labels": "文件整理,TMM",
-    "version": "1.0.4",
+    "version": "1.0.5",
     "icon": "https://raw.githubusercontent.com/jxxghp/MoviePilot/main/app.ico",
     "author": "QB",
     "level": 1,
     "v2": true,
     "history": {
+      "v1.0.5": "优化插件逻辑并修复已知问题。",
       "v1.0.4": "首个版本，支持按电影/剧集来源目录识别并自动迁移到目标目录。"
     }
   }
