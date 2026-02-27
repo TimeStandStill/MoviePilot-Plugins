@@ -16,7 +16,7 @@ class TMMMover(_PluginBase):
 
     plugin_name = "TMM 元数据转移助手"
     plugin_desc = "根据 TMM NFO 元数据自动分拣并跨挂载点迁移媒体目录"
-    plugin_version = "1.1.0"
+    plugin_version = "1.1.1"
     plugin_author = "QB"
     author_url = "https://github.com/TimeStandStill/MoviePilot-Plugins"
     plugin_icon = "https://raw.githubusercontent.com/jxxghp/MoviePilot/main/app.ico"
@@ -85,10 +85,9 @@ class TMMMover(_PluginBase):
             {
                 "path": "/run",
                 "endpoint": self.api_run_once,
-                "auth": "bear",  # 关键修复：必须携带 MP 的身份校验声明
+                "auth": "bear",  # 必须包含验证
                 "methods": ["POST"],
-                "summary": "手动触发 TMM 转移任务",
-                "description": "手动扫描并执行 TMM 目录转移操作"
+                "summary": "手动触发 TMM 转移任务"
             }
         ]
 
