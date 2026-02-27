@@ -411,4 +411,32 @@ class TMMMover(_PluginBase):
                     ]
                     values.extend(parts)
         except Exception as e:
-            logger.error(f"【TMM转移助手】解析 NFO 失败 {tv
+            logger.error(f"【TMM转移助手】解析 NFO 失败 {tvshow_nfo}: {str(e)}")
+            return []
+            
+        return self._deduplicate(values)
+
+    def _deduplicate(self, values: List[str]) -> List[str]:
+        uniq = []
+        seen = set()
+        for value in values:
+            if value not in seen:
+                seen.add(value)
+                uniq.append(value)
+        return uniq
+
+    def _safe_move_folder(self, src_dir: Path, dst_dir: Path) -> bool:
+        if dst_dir.exists():
+            logger.info(f"【TMM转移助手】目标目录已存在，跳过覆盖: {dst_dir.name}")
+            return False
+
+        dst_dir.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            shutil.move(str(src_dir), str(dst_dir))
+            logger.info(f"【TMM转移助手】✔ 成功移动: [{src_dir.name}] -> [{dst_dir.parent.name}]")
+            return True
+        except Exception as e:
+            logger.error(f"【TMM转移助手】❌ 移动失败 [{src_dir.name}]: {str(e)}")
+            if dst_dir.exists() and src_dir.exists():
+                 logger.error(f"【TMM转移助手】⚠️ 发生不完整迁移，请手动检查: {dst_dir}")
+            return False
