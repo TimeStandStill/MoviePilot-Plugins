@@ -5,7 +5,6 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from apscheduler.triggers.cron import CronTrigger
 
-from app import schemas
 from app.log import logger
 from app.plugins import _PluginBase
 
@@ -13,17 +12,13 @@ from app.plugins import _PluginBase
 class TMMMover(_PluginBase):
     """
     TMM 元数据智能转移助手
-    - 定时扫描来源目录一级子目录
-    - 识别 movie.nfo / tvshow.nfo 判断媒体类型
-    - 剧集根据 country/genre 路由到细分目录
-    - 使用 shutil.move 进行跨挂载点安全迁移
     """
 
     plugin_name = "TMM 元数据转移助手"
     plugin_desc = "根据 TMM NFO 元数据自动分拣并跨挂载点迁移媒体目录"
-    plugin_version = "1.0.6"
-    plugin_author = "MoviePilot"
-    author_url = "https://github.com/jxxghp/MoviePilot"
+    plugin_version = "1.0.9"
+    plugin_author = "QB"
+    author_url = "https://github.com/TimeStandStill/MoviePilot-Plugins"
     plugin_icon = "https://raw.githubusercontent.com/jxxghp/MoviePilot/main/app.ico"
     plugin_order = 66
 
@@ -64,9 +59,7 @@ class TMMMover(_PluginBase):
         series_ready = bool(self._source_series_path and self._default_series_path)
         self._enabled = bool(movie_ready or series_ready)
 
-        logger.info(
-            f"{self.plugin_name} 配置已加载: movie_ready={movie_ready}, series_ready={series_ready}, cron={self._cron}"
-        )
+        logger.info(f"【TMM转移助手】配置已加载: 电影就绪={movie_ready}, 剧集就绪={series_ready}, 状态={'启用' if self._enabled else '未完全配置'}")
 
     def get_state(self) -> bool:
         return self._enabled
@@ -118,7 +111,7 @@ class TMMMover(_PluginBase):
                                             "model": "source_movie_path",
                                             "label": "电影来源监控目录",
                                             "placeholder": "/media/source/Movies",
-                                            "hint": "包含 movie.nfo 的一级子目录",
+                                            "hint": "包含电影文件的来源目录",
                                             "persistent-hint": True
                                         }
                                     }
@@ -134,7 +127,7 @@ class TMMMover(_PluginBase):
                                             "model": "source_series_path",
                                             "label": "剧集来源监控目录",
                                             "placeholder": "/media/source/Series",
-                                            "hint": "包含 tvshow.nfo 的一级子目录",
+                                            "hint": "包含剧集文件的来源目录",
                                             "persistent-hint": True
                                         }
                                     }
@@ -229,7 +222,7 @@ class TMMMover(_PluginBase):
                             {
                                 "component": "div",
                                 "props": {"class": "text-body-2 text-medium-emphasis mb-6 text-center"},
-                                "text": "点击下方按钮，立即扫描来源目录并执行 TMM 元数据分类与跨挂载点迁移操作。",
+                                "text": "点击下方按钮，立即扫描来源目录并执行 TMM 元数据分类与跨挂载点迁移操作。未刮削（无NFO文件）的目录将被安全跳过。",
                             },
                             {
                                 "component": "VBtn",
@@ -263,7 +256,7 @@ class TMMMover(_PluginBase):
         try:
             trigger = CronTrigger.from_crontab(self._cron)
         except Exception as e:
-            logger.error(f"{self.plugin_name} cron 非法({self._cron})：{str(e)}")
+            logger.error(f"【TMM转移助手】cron 非法({self._cron})：{str(e)}")
             return []
 
         return [
@@ -278,27 +271,34 @@ class TMMMover(_PluginBase):
     def stop_service(self):
         pass
 
-    def api_run_once(self) -> schemas.Response:
+    def api_run_once(self) -> Dict[str, Any]:
         """
         供前端页面调用的手动触发接口
         """
+        logger.info("【TMM转移助手】收到手动运行指令，准备执行...")
         try:
             result = self.run_once()
-            return schemas.Response(success=True, message=result)
+            return {
+                "code": 0,
+                "msg": result
+            }
         except Exception as e:
-            logger.error(f"{self.plugin_name} 执行异常: {str(e)}")
-            return schemas.Response(success=False, message=str(e))
+            logger.error(f"【TMM转移助手】执行异常: {str(e)}", exc_info=True)
+            return {
+                "code": 1,
+                "msg": f"执行失败: {str(e)}"
+            }
 
     def run_once(self) -> str:
         """
         核心执行逻辑
         """
         if not self.get_state():
-            msg = "插件未完全配置，任务中止"
-            logger.warning(f"{self.plugin_name}: {msg}")
+            msg = "配置未完成：请至少完整配置【电影】或【剧集】的源目录和目标目录并保存。"
+            logger.warning(f"【TMM转移助手】{msg}")
             return msg
 
-        logger.info(f"{self.plugin_name}：开始执行扫描任务")
+        logger.info(f"【TMM转移助手】开始扫描源目录...")
         movie_moved, movie_skipped, movie_err = self._scan_source_dir(self._source_movie_path, "movie")
         series_moved, series_skipped, series_err = self._scan_source_dir(self._source_series_path, "series")
 
@@ -306,8 +306,8 @@ class TMMMover(_PluginBase):
         total_skipped = movie_skipped + series_skipped
         total_err = movie_err + series_err
         
-        summary = f"任务完成！成功转移: {total_moved}，跳过: {total_skipped}，失败: {total_err}。详情请查看系统日志。"
-        logger.info(f"{self.plugin_name}: {summary}")
+        summary = f"成功转移: {total_moved} 个，跳过未刮削/已存在: {total_skipped} 个，失败: {total_err} 个。"
+        logger.info(f"【TMM转移助手】任务执行完毕！{summary}")
         return summary
 
     def _scan_source_dir(self, source_path: str, mode: str) -> Tuple[int, int, int]:
@@ -316,10 +316,11 @@ class TMMMover(_PluginBase):
 
         source_dir = Path(source_path)
         if not source_dir.exists() or not source_dir.is_dir():
-            logger.warning(f"{self.plugin_name} 来源目录无效，跳过: {source_dir}")
+            logger.warning(f"【TMM转移助手】来源目录无效或不存在，跳过: {source_dir}")
             return 0, 0, 0
 
         moved, skipped, err = 0, 0, 0
+        logger.info(f"【TMM转移助手】正在扫描: {source_dir}")
 
         for child in source_dir.iterdir():
             if not child.is_dir() or self._is_deleted_by_tmm_dir(child):
@@ -331,7 +332,7 @@ class TMMMover(_PluginBase):
                     skipped += 1
             except Exception as e:
                 err += 1
-                logger.error(f"{self.plugin_name} 处理目录失败 {child}: {str(e)}")
+                logger.error(f"【TMM转移助手】处理子目录失败 [{child.name}]: {str(e)}")
                 
         return moved, skipped, err
 
@@ -340,25 +341,35 @@ class TMMMover(_PluginBase):
         return name == ".deletedByTMM" or name.endswith(".deletedByTMM")
 
     def _process_one_folder(self, folder: Path, mode: str) -> bool:
-        movie_nfo = folder / "movie.nfo"
-        tvshow_nfo = folder / "tvshow.nfo"
+        """
+        处理单个目录：强校验是否刮削
+        """
+        # 1. 第一层防御：检查目录下是否有任何 .nfo 文件
+        nfo_files = list(folder.glob("*.nfo"))
+        if not nfo_files:
+            # 没有任何 NFO 文件，说明完全没被刮削过，直接安全跳过
+            logger.info(f"【TMM转移助手】未刮削 (无 NFO 文件)，已安全跳过: {folder.name}")
+            return False
 
-        # 解决部分文件系统下的文件名大小写兼容问题
-        if not movie_nfo.exists() and not tvshow_nfo.exists():
-            for f in folder.iterdir():
-                if f.is_file():
-                    if f.name.lower() == "movie.nfo":
-                        movie_nfo = f
-                    elif f.name.lower() == "tvshow.nfo":
-                        tvshow_nfo = f
-
+        # 如果有 NFO，进入具体分类逻辑
         if mode == "movie":
-            if not movie_nfo.exists():
-                return False
+            # 对于电影，只要存在 .nfo 文件（无论是 movie.nfo 还是 电影名.nfo），均视为已刮削可以移动
             target_root = Path(self._default_movie_path)
         else:
+            # 对于剧集，必须要找到可以解析分类的 tvshow.nfo
+            tvshow_nfo = folder / "tvshow.nfo"
             if not tvshow_nfo.exists():
+                # 大小写兼容回退查找
+                for f in nfo_files:
+                    if f.name.lower() == "tvshow.nfo":
+                        tvshow_nfo = f
+                        break
+            
+            if not tvshow_nfo.exists():
+                logger.info(f"【TMM转移助手】剧集未刮削完成 (缺少主干 tvshow.nfo)，已跳过: {folder.name}")
                 return False
+                
+            # 解析目标目录
             target_root = self._resolve_series_target_root(tvshow_nfo)
 
         target_dir = target_root / folder.name
@@ -408,7 +419,7 @@ class TMMMover(_PluginBase):
                     ]
                     values.extend(parts)
         except Exception as e:
-            logger.error(f"解析 NFO 失败 {tvshow_nfo}: {str(e)}")
+            logger.error(f"【TMM转移助手】解析 NFO 失败 {tvshow_nfo}: {str(e)}")
             return []
             
         return self._deduplicate(values)
@@ -424,16 +435,16 @@ class TMMMover(_PluginBase):
 
     def _safe_move_folder(self, src_dir: Path, dst_dir: Path) -> bool:
         if dst_dir.exists():
-            logger.info(f"{self.plugin_name} 目标目录已存在，跳过覆盖: {dst_dir}")
+            logger.info(f"【TMM转移助手】目标目录已存在，跳过覆盖: {dst_dir.name}")
             return False
 
         dst_dir.parent.mkdir(parents=True, exist_ok=True)
         try:
             shutil.move(str(src_dir), str(dst_dir))
-            logger.info(f"{self.plugin_name} 成功移动: {src_dir.name} -> {dst_dir.parent.name}")
+            logger.info(f"【TMM转移助手】✔ 成功移动: [{src_dir.name}] -> [{dst_dir.parent.name}]")
             return True
         except Exception as e:
-            logger.error(f"{self.plugin_name} 移动失败 {src_dir.name}: {str(e)}")
+            logger.error(f"【TMM转移助手】❌ 移动失败 [{src_dir.name}]: {str(e)}")
             if dst_dir.exists() and src_dir.exists():
-                 logger.error(f"发生不完整迁移，请手动检查: {dst_dir}")
+                 logger.error(f"【TMM转移助手】⚠️ 发生不完整迁移，请手动检查: {dst_dir}")
             return False
