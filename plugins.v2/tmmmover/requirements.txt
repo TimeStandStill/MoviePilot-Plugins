@@ -1,0 +1,2 @@
+# TMMMover 插件额外依赖
+# 当前版本仅使用 MoviePilot 已内置依赖与 Python 标准库，无需新增第三方包。
