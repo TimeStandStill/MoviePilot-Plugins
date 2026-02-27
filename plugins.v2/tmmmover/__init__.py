@@ -16,7 +16,7 @@ class TMMMover(_PluginBase):
 
     plugin_name = "TMM 元数据转移助手"
     plugin_desc = "根据 TMM NFO 元数据自动分拣并跨挂载点迁移媒体目录"
-    plugin_version = "1.0.9"
+    plugin_version = "1.1.0"
     plugin_author = "QB"
     author_url = "https://github.com/TimeStandStill/MoviePilot-Plugins"
     plugin_icon = "https://raw.githubusercontent.com/jxxghp/MoviePilot/main/app.ico"
@@ -70,7 +70,7 @@ class TMMMover(_PluginBase):
         在插件列表页的卡片上提供快捷运行按钮
         """
         return [{
-            "cmd": "/api/v1/plugin/TMMMover/run",
+            "cmd": "plugin/TMMMover/run",
             "method": "post",
             "text": "立即运行",
             "icon": "mdi-play",
@@ -85,8 +85,10 @@ class TMMMover(_PluginBase):
             {
                 "path": "/run",
                 "endpoint": self.api_run_once,
+                "auth": "bear",  # 关键修复：必须携带 MP 的身份校验声明
                 "methods": ["POST"],
-                "summary": "手动触发一次 TMMMover 任务"
+                "summary": "手动触发 TMM 转移任务",
+                "description": "手动扫描并执行 TMM 目录转移操作"
             }
         ]
 
@@ -294,7 +296,7 @@ class TMMMover(_PluginBase):
         核心执行逻辑
         """
         if not self.get_state():
-            msg = "配置未完成：请至少完整配置【电影】或【剧集】的源目录和目标目录并保存。"
+            msg = "未完全配置，请至少在插件设置中填写【电影】或【剧集】的源目录和目标目录，并保存开启！"
             logger.warning(f"【TMM转移助手】{msg}")
             return msg
 
@@ -306,8 +308,8 @@ class TMMMover(_PluginBase):
         total_skipped = movie_skipped + series_skipped
         total_err = movie_err + series_err
         
-        summary = f"成功转移: {total_moved} 个，跳过未刮削/已存在: {total_skipped} 个，失败: {total_err} 个。"
-        logger.info(f"【TMM转移助手】任务执行完毕！{summary}")
+        summary = f"执行完成！成功: {total_moved} 个，跳过未刮削/已存在: {total_skipped} 个，失败: {total_err} 个。"
+        logger.info(f"【TMM转移助手】{summary}")
         return summary
 
     def _scan_source_dir(self, source_path: str, mode: str) -> Tuple[int, int, int]:
@@ -320,7 +322,7 @@ class TMMMover(_PluginBase):
             return 0, 0, 0
 
         moved, skipped, err = 0, 0, 0
-        logger.info(f"【TMM转移助手】正在扫描: {source_dir}")
+        logger.info(f"【TMM转移助手】正在扫描 ({mode} 模式): {source_dir}")
 
         for child in source_dir.iterdir():
             if not child.is_dir() or self._is_deleted_by_tmm_dir(child):
@@ -344,22 +346,16 @@ class TMMMover(_PluginBase):
         """
         处理单个目录：强校验是否刮削
         """
-        # 1. 第一层防御：检查目录下是否有任何 .nfo 文件
         nfo_files = list(folder.glob("*.nfo"))
         if not nfo_files:
-            # 没有任何 NFO 文件，说明完全没被刮削过，直接安全跳过
             logger.info(f"【TMM转移助手】未刮削 (无 NFO 文件)，已安全跳过: {folder.name}")
             return False
 
-        # 如果有 NFO，进入具体分类逻辑
         if mode == "movie":
-            # 对于电影，只要存在 .nfo 文件（无论是 movie.nfo 还是 电影名.nfo），均视为已刮削可以移动
             target_root = Path(self._default_movie_path)
         else:
-            # 对于剧集，必须要找到可以解析分类的 tvshow.nfo
             tvshow_nfo = folder / "tvshow.nfo"
             if not tvshow_nfo.exists():
-                # 大小写兼容回退查找
                 for f in nfo_files:
                     if f.name.lower() == "tvshow.nfo":
                         tvshow_nfo = f
@@ -369,7 +365,6 @@ class TMMMover(_PluginBase):
                 logger.info(f"【TMM转移助手】剧集未刮削完成 (缺少主干 tvshow.nfo)，已跳过: {folder.name}")
                 return False
                 
-            # 解析目标目录
             target_root = self._resolve_series_target_root(tvshow_nfo)
 
         target_dir = target_root / folder.name
@@ -400,9 +395,6 @@ class TMMMover(_PluginBase):
         return self.SERIES_CATEGORIES["mainland"]
 
     def _extract_tvshow_meta(self, tvshow_nfo: Path) -> List[str]:
-        """
-        提取 NFO 中的流派和国家信息
-        """
         values: List[str] = []
         try:
             tree = ET.parse(tvshow_nfo)
@@ -419,32 +411,4 @@ class TMMMover(_PluginBase):
                     ]
                     values.extend(parts)
         except Exception as e:
-            logger.error(f"【TMM转移助手】解析 NFO 失败 {tvshow_nfo}: {str(e)}")
-            return []
-            
-        return self._deduplicate(values)
-
-    def _deduplicate(self, values: List[str]) -> List[str]:
-        uniq = []
-        seen = set()
-        for value in values:
-            if value not in seen:
-                seen.add(value)
-                uniq.append(value)
-        return uniq
-
-    def _safe_move_folder(self, src_dir: Path, dst_dir: Path) -> bool:
-        if dst_dir.exists():
-            logger.info(f"【TMM转移助手】目标目录已存在，跳过覆盖: {dst_dir.name}")
-            return False
-
-        dst_dir.parent.mkdir(parents=True, exist_ok=True)
-        try:
-            shutil.move(str(src_dir), str(dst_dir))
-            logger.info(f"【TMM转移助手】✔ 成功移动: [{src_dir.name}] -> [{dst_dir.parent.name}]")
-            return True
-        except Exception as e:
-            logger.error(f"【TMM转移助手】❌ 移动失败 [{src_dir.name}]: {str(e)}")
-            if dst_dir.exists() and src_dir.exists():
-                 logger.error(f"【TMM转移助手】⚠️ 发生不完整迁移，请手动检查: {dst_dir}")
-            return False
+            logger.error(f"【TMM转移助手】解析 NFO 失败 {tv
