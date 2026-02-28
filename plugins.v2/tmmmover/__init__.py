@@ -20,7 +20,7 @@ class TMMMover(_PluginBase):
     plugin_desc = (
         "根据 TMM NFO 元数据自动分拣并跨挂载点迁移媒体目录，并自动清理废弃目录"
     )
-    plugin_version = "1.1.6"
+    plugin_version = "1.1.7"
     plugin_author = "QB"
     author_url = "https://github.com/TimeStandStill/MoviePilot-Plugins"
     plugin_icon = "sync.png"
