@@ -17,11 +17,13 @@ class TMMMover(_PluginBase):
     """
 
     plugin_name = "TMM 元数据转移助手"
-    plugin_desc = "根据 TMM NFO 元数据自动分拣并跨挂载点迁移媒体目录"
-    plugin_version = "1.1.5"
+    plugin_desc = (
+        "根据 TMM NFO 元数据自动分拣并跨挂载点迁移媒体目录，并自动清理废弃目录"
+    )
+    plugin_version = "1.1.6"
     plugin_author = "QB"
     author_url = "https://github.com/TimeStandStill/MoviePilot-Plugins"
-    plugin_icon = "https://github.com/TimeStandStill/MoviePilot-Plugins/blob/main/Gemini_Generated_Image_6wo4py6wo4py6wo4.png"
+    plugin_icon = "sync.png"
     plugin_order = 66
 
     # 固定剧集分类目录
@@ -63,7 +65,9 @@ class TMMMover(_PluginBase):
         series_ready = bool(self._source_series_path and self._default_series_path)
         self._enabled = bool(movie_ready or series_ready)
 
-        logger.info(f"【TMM转移助手】配置已加载: 电影就绪={movie_ready}, 剧集就绪={series_ready}, 状态={'启用' if self._enabled else '未完全配置'}, 通知开关={self._notify_enabled}")
+        logger.info(
+            f"【TMM转移助手】配置已加载: 电影就绪={movie_ready}, 剧集就绪={series_ready}, 状态={'启用' if self._enabled else '未完全配置'}, 通知开关={self._notify_enabled}"
+        )
 
     def get_state(self) -> bool:
         return self._enabled
@@ -73,13 +77,15 @@ class TMMMover(_PluginBase):
         """
         在插件列表页的卡片上提供快捷运行按钮
         """
-        return [{
-            "cmd": "plugin/TMMMover/run",
-            "method": "post",
-            "text": "立即运行",
-            "icon": "mdi-play",
-            "color": "primary"
-        }]
+        return [
+            {
+                "cmd": "plugin/TMMMover/run",
+                "method": "post",
+                "text": "立即运行",
+                "icon": "mdi-play",
+                "color": "primary",
+            }
+        ]
 
     def get_api(self) -> List[Dict[str, Any]]:
         """
@@ -91,7 +97,7 @@ class TMMMover(_PluginBase):
                 "endpoint": self.api_run_once,
                 "auth": "bear",  # 必须包含验证
                 "methods": ["POST"],
-                "summary": "手动触发 TMM 转移任务"
+                "summary": "手动触发 TMM 转移任务",
             }
         ]
 
@@ -117,10 +123,10 @@ class TMMMover(_PluginBase):
                                             "label": "电影来源监控目录",
                                             "placeholder": "/media/source/Movies",
                                             "hint": "包含电影文件的来源目录",
-                                            "persistent-hint": True
-                                        }
+                                            "persistent-hint": True,
+                                        },
                                     }
-                                ]
+                                ],
                             },
                             {
                                 "component": "VCol",
@@ -133,10 +139,10 @@ class TMMMover(_PluginBase):
                                             "label": "剧集来源监控目录",
                                             "placeholder": "/media/source/Series",
                                             "hint": "包含剧集文件的来源目录",
-                                            "persistent-hint": True
-                                        }
+                                            "persistent-hint": True,
+                                        },
                                     }
-                                ]
+                                ],
                             },
                             {
                                 "component": "VCol",
@@ -147,10 +153,10 @@ class TMMMover(_PluginBase):
                                         "props": {
                                             "model": "default_movie_path",
                                             "label": "目标电影存放目录",
-                                            "placeholder": "/media/movies"
-                                        }
+                                            "placeholder": "/media/movies",
+                                        },
                                     }
-                                ]
+                                ],
                             },
                             {
                                 "component": "VCol",
@@ -163,10 +169,10 @@ class TMMMover(_PluginBase):
                                             "label": "目标剧集存放根目录",
                                             "placeholder": "/media/series",
                                             "hint": "插件会在该目录下自动创建分类子目录（如：动漫、大陆剧集等）",
-                                            "persistent-hint": True
-                                        }
+                                            "persistent-hint": True,
+                                        },
                                     }
-                                ]
+                                ],
                             },
                             {
                                 "component": "VCol",
@@ -178,9 +184,9 @@ class TMMMover(_PluginBase):
                                             "model": "cron",
                                             "label": "定时执行 Cron 表达式",
                                             "placeholder": "0 */6 * * *",
-                                        }
+                                        },
                                     }
-                                ]
+                                ],
                             },
                             {
                                 "component": "VCol",
@@ -193,14 +199,14 @@ class TMMMover(_PluginBase):
                                             "label": "启用执行结果通知",
                                             "color": "primary",
                                             "hint": "开启后，每次手动或定时执行完毕会发送通知到系统消息通道",
-                                            "persistent-hint": True
-                                        }
+                                            "persistent-hint": True,
+                                        },
                                     }
-                                ]
-                            }
-                        ]
+                                ],
+                            },
+                        ],
                     }
-                ]
+                ],
             }
         ]
 
@@ -210,7 +216,7 @@ class TMMMover(_PluginBase):
             "default_movie_path": "",
             "default_series_path": "",
             "cron": "0 */6 * * *",
-            "notify_enabled": False
+            "notify_enabled": False,
         }
         return form, model
 
@@ -230,11 +236,11 @@ class TMMMover(_PluginBase):
                             {
                                 "component": "VIcon",
                                 "props": {
-                                    "icon": "mdi-folder-move", 
-                                    "size": "64", 
-                                    "color": "primary", 
-                                    "class": "mb-4"
-                                }
+                                    "icon": "mdi-folder-move",
+                                    "size": "64",
+                                    "color": "primary",
+                                    "class": "mb-4",
+                                },
                             },
                             {
                                 "component": "div",
@@ -243,8 +249,10 @@ class TMMMover(_PluginBase):
                             },
                             {
                                 "component": "div",
-                                "props": {"class": "text-body-2 text-medium-emphasis mb-6 text-center"},
-                                "text": "点击下方按钮，立即扫描来源目录并执行 TMM 元数据分类与跨挂载点迁移操作。未刮削（无NFO文件）及未规范重命名的目录将被安全跳过。",
+                                "props": {
+                                    "class": "text-body-2 text-medium-emphasis mb-6 text-center"
+                                },
+                                "text": "点击下方按钮，立即扫描来源目录并执行 TMM 元数据分类与跨挂载点迁移操作。未刮削（无NFO文件）及未规范重命名的目录将被安全跳过。发现 TMM 删除标记的目录将自动清理。",
                             },
                             {
                                 "component": "VBtn",
@@ -286,7 +294,7 @@ class TMMMover(_PluginBase):
                 "id": "scan_move_job",
                 "name": "TMM 目录转移任务",
                 "trigger": trigger,
-                "func": self.run_once
+                "func": self.run_once,
             }
         ]
 
@@ -303,14 +311,11 @@ class TMMMover(_PluginBase):
             threading.Thread(target=self.run_once, daemon=True).start()
             return {
                 "code": 0,
-                "msg": "✅ 任务已在后台启动，详细进度请前往【系统日志】查看！"
+                "msg": "✅ 任务已在后台启动，详细进度请前往【系统日志】查看！",
             }
         except Exception as e:
             logger.error(f"【TMM转移助手】启动任务异常: {str(e)}", exc_info=True)
-            return {
-                "code": 1,
-                "msg": f"启动失败: {str(e)}"
-            }
+            return {"code": 1, "msg": f"启动失败: {str(e)}"}
 
     def run_once(self) -> str:
         """
@@ -322,13 +327,17 @@ class TMMMover(_PluginBase):
             return msg
 
         logger.info(f"【TMM转移助手】=== 开始执行后台扫描任务 ===")
-        movie_moved, movie_skipped, movie_err = self._scan_source_dir(self._source_movie_path, "movie")
-        series_moved, series_skipped, series_err = self._scan_source_dir(self._source_series_path, "series")
+        movie_moved, movie_skipped, movie_err = self._scan_source_dir(
+            self._source_movie_path, "movie"
+        )
+        series_moved, series_skipped, series_err = self._scan_source_dir(
+            self._source_series_path, "series"
+        )
 
         total_moved = movie_moved + series_moved
         total_skipped = movie_skipped + series_skipped
         total_err = movie_err + series_err
-        
+
         summary_title = "【TMM转移助手】任务执行完毕"
         summary_text = f"后台任务执行完成！\n成功转移: {total_moved} 个\n跳过未规范/已存在: {total_skipped} 个\n失败: {total_err} 个。"
         logger.info(f"【TMM转移助手】{summary_text.replace(chr(10), ' ')}")
@@ -336,15 +345,12 @@ class TMMMover(_PluginBase):
         # 推送消息通知，直接使用 _PluginBase 提供的 self.post_message 即可
         if self._notify_enabled:
             try:
-                self.post_message(
-                    title=summary_title,
-                    text=summary_text
-                )
+                self.post_message(title=summary_title, text=summary_text)
                 logger.info("【TMM转移助手】已成功发送运行结果通知")
             except Exception as e:
                 logger.error(f"【TMM转移助手】发送通知失败: {str(e)}")
 
-        return summary_text.replace('\n', ' ')
+        return summary_text.replace("\n", " ")
 
     def _scan_source_dir(self, source_path: str, mode: str) -> Tuple[int, int, int]:
         if not source_path:
@@ -359,8 +365,22 @@ class TMMMover(_PluginBase):
         logger.info(f"【TMM转移助手】正在扫描 ({mode} 模式): {source_dir}")
 
         for child in source_dir.iterdir():
-            if not child.is_dir() or self._is_deleted_by_tmm_dir(child):
+            if not child.is_dir():
                 continue
+
+            # 拦截并删除 .deletedByTMM 目录
+            if self._is_deleted_by_tmm_dir(child):
+                try:
+                    shutil.rmtree(child)
+                    logger.info(
+                        f"【TMM转移助手】已自动清理 TMM 删除标记目录: {child.name}"
+                    )
+                except Exception as e:
+                    logger.error(
+                        f"【TMM转移助手】清理 TMM 删除标记目录失败 [{child.name}]: {str(e)}"
+                    )
+                continue
+
             try:
                 if self._process_one_folder(child, mode):
                     moved += 1
@@ -369,19 +389,19 @@ class TMMMover(_PluginBase):
             except Exception as e:
                 err += 1
                 logger.error(f"【TMM转移助手】处理子目录失败 [{child.name}]: {str(e)}")
-                
+
         return moved, skipped, err
 
     def _is_deleted_by_tmm_dir(self, folder: Path) -> bool:
         name = folder.name.strip()
         return name == ".deletedByTMM" or name.endswith(".deletedByTMM")
-        
+
     def _has_year_in_name(self, folder_name: str) -> bool:
         """
         检查文件夹名称中是否包含带有年份的括号结构，例如 (2024) 或 （2024）
         """
         # 正则表达式匹配：英文或中文左括号 + 4位数字 + 英文或中文右括号
-        return bool(re.search(r'[\(（]\d{4}[\)）]', folder_name))
+        return bool(re.search(r"[\(（]\d{4}[\)）]", folder_name))
 
     def _process_one_folder(self, folder: Path, mode: str) -> bool:
         """
@@ -389,13 +409,17 @@ class TMMMover(_PluginBase):
         """
         # 1. 重命名校验（必须包含年份括号）
         if not self._has_year_in_name(folder.name):
-            logger.info(f"【TMM转移助手】未重命名规范 (未包含年份括号)，已安全跳过: {folder.name}")
+            logger.info(
+                f"【TMM转移助手】未重命名规范 (未包含年份括号)，已安全跳过: {folder.name}"
+            )
             return False
 
         # 2. 刮削完成校验
         nfo_files = list(folder.glob("*.nfo"))
         if not nfo_files:
-            logger.info(f"【TMM转移助手】未刮削完成 (无 NFO 文件)，已安全跳过: {folder.name}")
+            logger.info(
+                f"【TMM转移助手】未刮削完成 (无 NFO 文件)，已安全跳过: {folder.name}"
+            )
             return False
 
         if mode == "movie":
@@ -407,11 +431,13 @@ class TMMMover(_PluginBase):
                     if f.name.lower() == "tvshow.nfo":
                         tvshow_nfo = f
                         break
-            
+
             if not tvshow_nfo.exists():
-                logger.info(f"【TMM转移助手】剧集未刮削完成 (缺少主干 tvshow.nfo)，已跳过: {folder.name}")
+                logger.info(
+                    f"【TMM转移助手】剧集未刮削完成 (缺少主干 tvshow.nfo)，已跳过: {folder.name}"
+                )
                 return False
-                
+
             target_root = self._resolve_series_target_root(tvshow_nfo)
 
         target_dir = target_root / folder.name
@@ -424,7 +450,7 @@ class TMMMover(_PluginBase):
 
     def _resolve_series_category_name(self, meta_values: List[str]) -> str:
         normalized_values = [value.lower() for value in meta_values]
-        
+
         # 匹配规则列表（优先级从上到下）
         category_rules = [
             # 动漫拥有最高绝对优先级：只要出现这些字眼，无视其他国家或类型标签，统统归入【动漫】
@@ -440,9 +466,13 @@ class TMMMover(_PluginBase):
         ]
 
         for category_key, keywords in category_rules:
-            if any(keyword.lower() in val for val in normalized_values for keyword in keywords):
+            if any(
+                keyword.lower() in val
+                for val in normalized_values
+                for keyword in keywords
+            ):
                 return self.SERIES_CATEGORIES[category_key]
-                
+
         # 所有规则都没匹配到，默认兜底
         return self.SERIES_CATEGORIES["mainland"]
 
@@ -458,14 +488,18 @@ class TMMMover(_PluginBase):
                     if not text:
                         continue
                     parts = [
-                        p.strip() for p in text.replace("|", "/").replace(",", "/").replace("，", "/").split("/")
+                        p.strip()
+                        for p in text.replace("|", "/")
+                        .replace(",", "/")
+                        .replace("，", "/")
+                        .split("/")
                         if p.strip()
                     ]
                     values.extend(parts)
         except Exception as e:
             logger.error(f"【TMM转移助手】解析 NFO 失败 {tvshow_nfo}: {str(e)}")
             return []
-            
+
         return self._deduplicate(values)
 
     def _deduplicate(self, values: List[str]) -> List[str]:
@@ -485,10 +519,12 @@ class TMMMover(_PluginBase):
         dst_dir.parent.mkdir(parents=True, exist_ok=True)
         try:
             shutil.move(str(src_dir), str(dst_dir))
-            logger.info(f"【TMM转移助手】✔ 成功移动: [{src_dir.name}] -> [{dst_dir.parent.name}]")
+            logger.info(
+                f"【TMM转移助手】✔ 成功移动: [{src_dir.name}] -> [{dst_dir.parent.name}]"
+            )
             return True
         except Exception as e:
             logger.error(f"【TMM转移助手】❌ 移动失败 [{src_dir.name}]: {str(e)}")
             if dst_dir.exists() and src_dir.exists():
-                 logger.error(f"【TMM转移助手】⚠️ 发生不完整迁移，请手动检查: {dst_dir}")
+                logger.error(f"【TMM转移助手】⚠️ 发生不完整迁移，请手动检查: {dst_dir}")
             return False
