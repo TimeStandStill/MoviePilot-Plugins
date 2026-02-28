@@ -4,7 +4,7 @@
     "description": "根据 TMM NFO 元数据自动分拣电影和剧集，智能按地区/类型分类到目标目录，支持跨挂载点迁移；仅处理已规范命名（含年份括号）且已刮削的目录，可选执行结果通知。",
     "labels": "文件整理,TMM",
     "version": "1.1.5",
-    "icon": "https://raw.githubusercontent.com/TimeStandStill/MoviePilot-Plugins/main/Gemini_Generated_Image_6wo4py6wo4py6wo4.png",
+    "icon": "https://github.com/TimeStandStill/MoviePilot-Plugins/blob/main/Gemini_Generated_Image_6wo4py6wo4py6wo4.png",
     "author": "QB",
     "level": 1,
     "history": {
