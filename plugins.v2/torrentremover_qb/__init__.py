@@ -89,34 +89,37 @@ class TorrentRemoverQB(_PluginBase):
             if self._onlyonce:
                 self._scheduler = BackgroundScheduler(timezone=settings.TZ)
                 logger.info(f"自动删种服务启动，立即运行一次")
-                self._scheduler.add_job(func=self.delete_torrents, trigger='date',
-                                        run_date=datetime.now(
-                                            tz=pytz.timezone(settings.TZ)) + timedelta(seconds=3)
-                                        )
+                self._scheduler.add_job(
+                    func=self.delete_torrents,
+                    trigger="date",
+                    run_date=datetime.now(tz=pytz.timezone(settings.TZ))
+                    + timedelta(seconds=3),
+                )
                 # 关闭一次性开关
                 self._onlyonce = False
                 # 保存设置
-                self.update_config({
-                    "enabled": self._enabled,
-                    "notify": self._notify,
-                    "onlyonce": self._onlyonce,
-                    "action": self._action,
-                    "cron": self._cron,
-                    "downloaders": self._downloaders,
-                    "samedata": self._samedata,
-                    "mponly": self._mponly,
-                    "size": self._size,
-                    "ratio": self._ratio,
-                    "time": self._time,
-                    "upspeed": self._upspeed,
-                    "labels": self._labels,
-                    "pathkeywords": self._pathkeywords,
-                    "trackerkeywords": self._trackerkeywords,
-                    "errorkeywords": self._errorkeywords,
-                    "torrentstates": self._torrentstates,
-                    "torrentcategorys": self._torrentcategorys
-
-                })
+                self.update_config(
+                    {
+                        "enabled": self._enabled,
+                        "notify": self._notify,
+                        "onlyonce": self._onlyonce,
+                        "action": self._action,
+                        "cron": self._cron,
+                        "downloaders": self._downloaders,
+                        "samedata": self._samedata,
+                        "mponly": self._mponly,
+                        "size": self._size,
+                        "ratio": self._ratio,
+                        "time": self._time,
+                        "upspeed": self._upspeed,
+                        "labels": self._labels,
+                        "pathkeywords": self._pathkeywords,
+                        "trackerkeywords": self._trackerkeywords,
+                        "errorkeywords": self._errorkeywords,
+                        "torrentstates": self._torrentstates,
+                        "torrentcategorys": self._torrentcategorys,
+                    }
+                )
                 if self._scheduler.get_jobs():
                     # 启动服务
                     self._scheduler.print_jobs()
@@ -144,413 +147,385 @@ class TorrentRemoverQB(_PluginBase):
         }]
         """
         if self.get_state():
-            return [{
-                "id": "TorrentRemoverQB",
-                "name": "自动删种 (QB版) 服务",
-                "trigger": CronTrigger.from_crontab(self._cron),
-                "func": self.delete_torrents,
-                "kwargs": {}
-            }]
+            return [
+                {
+                    "id": "TorrentRemoverQB",
+                    "name": "自动删种 (QB版) 服务",
+                    "trigger": CronTrigger.from_crontab(self._cron),
+                    "func": self.delete_torrents,
+                    "kwargs": {},
+                }
+            ]
         return []
 
     def get_form(self) -> Tuple[List[dict], Dict[str, Any]]:
         return [
             {
-                'component': 'VForm',
-                'content': [
+                "component": "VForm",
+                "content": [
                     {
-                        'component': 'VRow',
-                        'content': [
+                        "component": "VRow",
+                        "content": [
                             {
-                                'component': 'VCol',
-                                'props': {
-                                    'cols': 12,
-                                    'md': 6
-                                },
-                                'content': [
+                                "component": "VCol",
+                                "props": {"cols": 12, "md": 6},
+                                "content": [
                                     {
-                                        'component': 'VSwitch',
-                                        'props': {
-                                            'model': 'enabled',
-                                            'label': '启用插件',
-                                        }
+                                        "component": "VSwitch",
+                                        "props": {
+                                            "model": "enabled",
+                                            "label": "启用插件",
+                                        },
                                     }
-                                ]
+                                ],
                             },
                             {
-                                'component': 'VCol',
-                                'props': {
-                                    'cols': 12,
-                                    'md': 6
-                                },
-                                'content': [
+                                "component": "VCol",
+                                "props": {"cols": 12, "md": 6},
+                                "content": [
                                     {
-                                        'component': 'VSwitch',
-                                        'props': {
-                                            'model': 'notify',
-                                            'label': '发送通知',
-                                        }
+                                        "component": "VSwitch",
+                                        "props": {
+                                            "model": "notify",
+                                            "label": "发送通知",
+                                        },
                                     }
-                                ]
-                            }
-                        ]
+                                ],
+                            },
+                        ],
                     },
                     {
-                        'component': 'VRow',
-                        'content': [
+                        "component": "VRow",
+                        "content": [
                             {
-                                'component': 'VCol',
-                                'props': {
-                                    'cols': 12,
-                                    'md': 6
-                                },
-                                'content': [
+                                "component": "VCol",
+                                "props": {"cols": 12, "md": 6},
+                                "content": [
                                     {
-                                        'component': 'VCronField',
-                                        'props': {
-                                            'model': 'cron',
-                                            'label': '执行周期',
-                                            'placeholder': '0 */12 * * *'
-                                        }
+                                        "component": "VCronField",
+                                        "props": {
+                                            "model": "cron",
+                                            "label": "执行周期",
+                                            "placeholder": "0 */12 * * *",
+                                        },
                                     }
-                                ]
+                                ],
                             },
                             {
-                                'component': 'VCol',
-                                'props': {
-                                    'cols': 12,
-                                    'md': 6
-                                },
-                                'content': [
+                                "component": "VCol",
+                                "props": {"cols": 12, "md": 6},
+                                "content": [
                                     {
-                                        'component': 'VSelect',
-                                        'props': {
-                                            'model': 'action',
-                                            'label': '动作',
-                                            'items': [
-                                                {'title': '暂停', 'value': 'pause'},
-                                                {'title': '删除种子', 'value': 'delete'},
-                                                {'title': '删除种子和文件', 'value': 'deletefile'}
-                                            ]
-                                        }
+                                        "component": "VSelect",
+                                        "props": {
+                                            "model": "action",
+                                            "label": "动作",
+                                            "items": [
+                                                {"title": "暂停", "value": "pause"},
+                                                {
+                                                    "title": "删除种子",
+                                                    "value": "delete",
+                                                },
+                                                {
+                                                    "title": "删除种子和文件",
+                                                    "value": "deletefile",
+                                                },
+                                            ],
+                                        },
                                     }
-                                ]
-                            }
-                        ]
+                                ],
+                            },
+                        ],
                     },
                     {
-                        'component': 'VRow',
-                        'content': [
+                        "component": "VRow",
+                        "content": [
                             {
-                                'component': 'VCol',
-                                'props': {
-                                    'cols': 12
-                                },
-                                'content': [
+                                "component": "VCol",
+                                "props": {"cols": 12},
+                                "content": [
                                     {
-                                        'component': 'VSelect',
-                                        'props': {
-                                            'multiple': True,
-                                            'chips': True,
-                                            'clearable': True,
-                                            'model': 'downloaders',
-                                            'label': '下载器',
-                                            'items': [{"title": config.name, "value": config.name}
-                                                      for config in DownloaderHelper().get_configs().values()]
-                                        }
+                                        "component": "VSelect",
+                                        "props": {
+                                            "multiple": True,
+                                            "chips": True,
+                                            "clearable": True,
+                                            "model": "downloaders",
+                                            "label": "下载器",
+                                            "items": [
+                                                {
+                                                    "title": config.name,
+                                                    "value": config.name,
+                                                }
+                                                for config in DownloaderHelper()
+                                                .get_configs()
+                                                .values()
+                                            ],
+                                        },
                                     }
-                                ]
+                                ],
                             }
-                        ]
+                        ],
                     },
                     {
-                        'component': 'VRow',
-                        'content': [
+                        "component": "VRow",
+                        "content": [
                             {
-                                'component': 'VCol',
-                                'props': {
-                                    'cols': 6
-                                },
-                                'content': [
+                                "component": "VCol",
+                                "props": {"cols": 6},
+                                "content": [
                                     {
-                                        'component': 'VTextField',
-                                        'props': {
-                                            'model': 'size',
-                                            'label': '种子大小（GB）',
-                                            'placeholder': '例如1-10'
-                                        }
+                                        "component": "VTextField",
+                                        "props": {
+                                            "model": "size",
+                                            "label": "种子大小（GB）",
+                                            "placeholder": "例如1-10",
+                                        },
                                     }
-                                ]
+                                ],
                             },
                             {
-                                'component': 'VCol',
-                                'props': {
-                                    'cols': 6
-                                },
-                                'content': [
+                                "component": "VCol",
+                                "props": {"cols": 6},
+                                "content": [
                                     {
-                                        'component': 'VTextField',
-                                        'props': {
-                                            'model': 'ratio',
-                                            'label': '分享率',
-                                            'placeholder': ''
-                                        }
+                                        "component": "VTextField",
+                                        "props": {
+                                            "model": "ratio",
+                                            "label": "分享率",
+                                            "placeholder": "",
+                                        },
                                     }
-                                ]
+                                ],
                             },
                             {
-                                'component': 'VCol',
-                                'props': {
-                                    'cols': 6
-                                },
-                                'content': [
+                                "component": "VCol",
+                                "props": {"cols": 6},
+                                "content": [
                                     {
-                                        'component': 'VTextField',
-                                        'props': {
-                                            'model': 'time',
-                                            'label': '做种时间（小时）',
-                                            'placeholder': ''
-                                        }
+                                        "component": "VTextField",
+                                        "props": {
+                                            "model": "time",
+                                            "label": "做种时间（小时）",
+                                            "placeholder": "",
+                                        },
                                     }
-                                ]
+                                ],
                             },
                             {
-                                'component': 'VCol',
-                                'props': {
-                                    'cols': 6
-                                },
-                                'content': [
+                                "component": "VCol",
+                                "props": {"cols": 6},
+                                "content": [
                                     {
-                                        'component': 'VTextField',
-                                        'props': {
-                                            'model': 'upspeed',
-                                            'label': '平均上传速度',
-                                            'placeholder': ''
-                                        }
+                                        "component": "VTextField",
+                                        "props": {
+                                            "model": "upspeed",
+                                            "label": "平均上传速度",
+                                            "placeholder": "",
+                                        },
                                     }
-                                ]
+                                ],
                             },
                             {
-                                'component': 'VCol',
-                                'props': {
-                                    'cols': 6
-                                },
-                                'content': [
+                                "component": "VCol",
+                                "props": {"cols": 6},
+                                "content": [
                                     {
-                                        'component': 'VTextField',
-                                        'props': {
-                                            'model': 'labels',
-                                            'label': '标签',
-                                            'placeholder': '用,分隔多个标签'
-                                        }
+                                        "component": "VTextField",
+                                        "props": {
+                                            "model": "labels",
+                                            "label": "标签",
+                                            "placeholder": "用,分隔多个标签",
+                                        },
                                     }
-                                ]
+                                ],
                             },
                             {
-                                'component': 'VCol',
-                                'props': {
-                                    'cols': 6
-                                },
-                                'content': [
+                                "component": "VCol",
+                                "props": {"cols": 6},
+                                "content": [
                                     {
-                                        'component': 'VTextField',
-                                        'props': {
-                                            'model': 'pathkeywords',
-                                            'label': '保存路径关键词',
-                                            'placeholder': '支持正式表达式'
-                                        }
+                                        "component": "VTextField",
+                                        "props": {
+                                            "model": "pathkeywords",
+                                            "label": "保存路径关键词",
+                                            "placeholder": "支持正式表达式",
+                                        },
                                     }
-                                ]
+                                ],
                             },
                             {
-                                'component': 'VCol',
-                                'props': {
-                                    'cols': 6
-                                },
-                                'content': [
+                                "component": "VCol",
+                                "props": {"cols": 6},
+                                "content": [
                                     {
-                                        'component': 'VTextField',
-                                        'props': {
-                                            'model': 'trackerkeywords',
-                                            'label': 'Tracker关键词',
-                                            'placeholder': '支持正式表达式'
-                                        }
+                                        "component": "VTextField",
+                                        "props": {
+                                            "model": "trackerkeywords",
+                                            "label": "Tracker关键词",
+                                            "placeholder": "支持正式表达式",
+                                        },
                                     }
-                                ]
+                                ],
                             },
                             {
-                                'component': 'VCol',
-                                'props': {
-                                    'cols': 6
-                                },
-                                'content': [
+                                "component": "VCol",
+                                "props": {"cols": 6},
+                                "content": [
                                     {
-                                        'component': 'VTextField',
-                                        'props': {
-                                            'model': 'errorkeywords',
-                                            'label': '错误信息关键词（TR）',
-                                            'placeholder': '支持正式表达式，仅适用于TR'
-                                        }
+                                        "component": "VTextField",
+                                        "props": {
+                                            "model": "errorkeywords",
+                                            "label": "错误信息关键词（TR）",
+                                            "placeholder": "支持正式表达式，仅适用于TR",
+                                        },
                                     }
-                                ]
+                                ],
                             },
                             {
-                                'component': 'VCol',
-                                'props': {
-                                    'cols': 6
-                                },
-                                'content': [
+                                "component": "VCol",
+                                "props": {"cols": 6},
+                                "content": [
                                     {
-                                        'component': 'VTextField',
-                                        'props': {
-                                            'model': 'torrentstates',
-                                            'label': '任务状态（QB）',
-                                            'placeholder': '用,分隔多个状态，仅适用于QB'
-                                        }
+                                        "component": "VTextField",
+                                        "props": {
+                                            "model": "torrentstates",
+                                            "label": "任务状态（QB）",
+                                            "placeholder": "用,分隔多个状态，仅适用于QB",
+                                        },
                                     }
-                                ]
+                                ],
                             },
                             {
-                                'component': 'VCol',
-                                'props': {
-                                    'cols': 6
-                                },
-                                'content': [
+                                "component": "VCol",
+                                "props": {"cols": 6},
+                                "content": [
                                     {
-                                        'component': 'VTextField',
-                                        'props': {
-                                            'model': 'torrentcategorys',
-                                            'label': '任务分类',
-                                            'placeholder': '用,分隔多个分类'
-                                        }
+                                        "component": "VTextField",
+                                        "props": {
+                                            "model": "torrentcategorys",
+                                            "label": "任务分类",
+                                            "placeholder": "用,分隔多个分类",
+                                        },
                                     }
-                                ]
-                            }
-                        ]
+                                ],
+                            },
+                        ],
                     },
                     {
-                        'component': 'VRow',
-                        'content': [
+                        "component": "VRow",
+                        "content": [
                             {
-                                'component': 'VCol',
-                                'props': {
-                                    'cols': 12,
-                                    'md': 4
-                                },
-                                'content': [
+                                "component": "VCol",
+                                "props": {"cols": 12, "md": 4},
+                                "content": [
                                     {
-                                        'component': 'VSwitch',
-                                        'props': {
-                                            'model': 'samedata',
-                                            'label': '处理辅种',
-                                        }
+                                        "component": "VSwitch",
+                                        "props": {
+                                            "model": "samedata",
+                                            "label": "处理辅种",
+                                        },
                                     }
-                                ]
+                                ],
                             },
                             {
-                                'component': 'VCol',
-                                'props': {
-                                    'cols': 12,
-                                    'md': 4
-                                },
-                                'content': [
+                                "component": "VCol",
+                                "props": {"cols": 12, "md": 4},
+                                "content": [
                                     {
-                                        'component': 'VSwitch',
-                                        'props': {
-                                            'model': 'mponly',
-                                            'label': '仅MoviePilot任务',
-                                        }
+                                        "component": "VSwitch",
+                                        "props": {
+                                            "model": "mponly",
+                                            "label": "仅MoviePilot任务",
+                                        },
                                     }
-                                ]
+                                ],
                             },
                             {
-                                'component': 'VCol',
-                                'props': {
-                                    'cols': 12,
-                                    'md': 4
-                                },
-                                'content': [
+                                "component": "VCol",
+                                "props": {"cols": 12, "md": 4},
+                                "content": [
                                     {
-                                        'component': 'VSwitch',
-                                        'props': {
-                                            'model': 'onlyonce',
-                                            'label': '立即运行一次',
-                                        }
+                                        "component": "VSwitch",
+                                        "props": {
+                                            "model": "onlyonce",
+                                            "label": "立即运行一次",
+                                        },
                                     }
-                                ]
-                            }
-                        ]
+                                ],
+                            },
+                        ],
                     },
                     {
-                        'component': 'VRow',
-                        'content': [
+                        "component": "VRow",
+                        "content": [
                             {
-                                'component': 'VCol',
-                                'props': {
-                                    'cols': 12,
+                                "component": "VCol",
+                                "props": {
+                                    "cols": 12,
                                 },
-                                'content': [
+                                "content": [
                                     {
-                                        'component': 'VAlert',
-                                        'props': {
-                                            'type': 'info',
-                                            'variant': 'tonal',
-                                            'text': '自动删种存在风险，如设置不当可能导致数据丢失！建议动作先选择暂停，确定条件正确后再改成删除。'
-                                        }
+                                        "component": "VAlert",
+                                        "props": {
+                                            "type": "info",
+                                            "variant": "tonal",
+                                            "text": "自动删种存在风险，如设置不当可能导致数据丢失！建议动作先选择暂停，确定条件正确后再改成删除。",
+                                        },
                                     }
-                                ]
+                                ],
                             }
-                        ]
+                        ],
                     },
                     {
-                        'component': 'VRow',
-                        'content': [
+                        "component": "VRow",
+                        "content": [
                             {
-                                'component': 'VCol',
-                                'props': {
-                                    'cols': 12,
+                                "component": "VCol",
+                                "props": {
+                                    "cols": 12,
                                 },
-                                'content': [
+                                "content": [
                                     {
-                                        'component': 'VAlert',
-                                        'props': {
-                                            'type': 'info',
-                                            'variant': 'tonal',
-                                            'text': '任务状态（QB）字典：'
-                                                    'downloading：正在下载-传输数据，'
-                                                    'stalledDL：正在下载_未建立连接，'
-                                                    'uploading：正在上传-传输数据，'
-                                                    'stalledUP：正在上传-未建立连接，'
-                                                    'error：暂停-发生错误，'
-                                                    'pausedDL：暂停-下载未完成，'
-                                                    'pausedUP：暂停-下载完成，'
-                                                    'missingFiles：暂停-文件丢失，'
-                                                    'checkingDL：检查中-下载未完成，'
-                                                    'checkingUP：检查中-下载完成，'
-                                                    'checkingResumeData：检查中-启动时恢复数据，'
-                                                    'forcedDL：强制下载-忽略队列，'
-                                                    'queuedDL：等待下载-排队，'
-                                                    'forcedUP：强制上传-忽略队列，'
-                                                    'queuedUP：等待上传-排队，'
-                                                    'allocating：分配磁盘空间，'
-                                                    'metaDL：获取元数据，'
-                                                    'moving：移动文件，'
-                                                    'unknown：未知状态'
-                                        }
+                                        "component": "VAlert",
+                                        "props": {
+                                            "type": "info",
+                                            "variant": "tonal",
+                                            "text": "任务状态（QB）字典："
+                                            "downloading：正在下载-传输数据，"
+                                            "stalledDL：正在下载_未建立连接，"
+                                            "uploading：正在上传-传输数据，"
+                                            "stalledUP：正在上传-未建立连接，"
+                                            "error：暂停-发生错误，"
+                                            "pausedDL：暂停-下载未完成，"
+                                            "pausedUP：暂停-下载完成，"
+                                            "missingFiles：暂停-文件丢失，"
+                                            "checkingDL：检查中-下载未完成，"
+                                            "checkingUP：检查中-下载完成，"
+                                            "checkingResumeData：检查中-启动时恢复数据，"
+                                            "forcedDL：强制下载-忽略队列，"
+                                            "queuedDL：等待下载-排队，"
+                                            "forcedUP：强制上传-忽略队列，"
+                                            "queuedUP：等待上传-排队，"
+                                            "allocating：分配磁盘空间，"
+                                            "metaDL：获取元数据，"
+                                            "moving：移动文件，"
+                                            "unknown：未知状态",
+                                        },
                                     }
-                                ]
+                                ],
                             }
-                        ]
-                    }
-                ]
+                        ],
+                    },
+                ],
             }
         ], {
             "enabled": False,
             "notify": False,
             "onlyonce": False,
-            "action": 'pause',
-            'downloaders': [],
-            "cron": '0 */12 * * *',
+            "action": "pause",
+            "downloaders": [],
+            "cron": "0 */12 * * *",
             "samedata": False,
             "mponly": False,
             "size": "",
@@ -562,7 +537,7 @@ class TorrentRemoverQB(_PluginBase):
             "trackerkeywords": "",
             "errorkeywords": "",
             "torrentstates": "",
-            "torrentcategorys": ""
+            "torrentcategorys": "",
         }
 
     def get_page(self) -> List[dict]:
@@ -635,44 +610,58 @@ class TorrentRemoverQB(_PluginBase):
                     # 下载器
                     downlader_obj = self.__get_downloader(downloader)
                     if self._action == "pause":
-                        message_text = f"{downloader.title()} 共暂停{len(torrents)}个种子"
+                        message_text = (
+                            f"{downloader.title()} 共暂停{len(torrents)}个种子"
+                        )
                         for torrent in torrents:
                             if self._event.is_set():
                                 logger.info(f"自动删种服务停止")
                                 return
-                            text_item = f"{torrent.get('name')} " \
-                                        f"来自站点：{torrent.get('site')} " \
-                                        f"大小：{StringUtils.str_filesize(torrent.get('size'))}"
+                            text_item = (
+                                f"{torrent.get('name')} "
+                                f"来自站点：{torrent.get('site')} "
+                                f"大小：{StringUtils.str_filesize(torrent.get('size'))}"
+                            )
                             # 暂停种子
                             downlader_obj.stop_torrents(ids=[torrent.get("id")])
                             logger.info(f"自动删种任务 暂停种子：{text_item}")
                             message_text = f"{message_text}\n{text_item}"
                     elif self._action == "delete":
-                        message_text = f"{downloader.title()} 共删除{len(torrents)}个种子"
+                        message_text = (
+                            f"{downloader.title()} 共删除{len(torrents)}个种子"
+                        )
                         for torrent in torrents:
                             if self._event.is_set():
                                 logger.info(f"自动删种服务停止")
                                 return
-                            text_item = f"{torrent.get('name')} " \
-                                        f"来自站点：{torrent.get('site')} " \
-                                        f"大小：{StringUtils.str_filesize(torrent.get('size'))}"
+                            text_item = (
+                                f"{torrent.get('name')} "
+                                f"来自站点：{torrent.get('site')} "
+                                f"大小：{StringUtils.str_filesize(torrent.get('size'))}"
+                            )
                             # 删除种子
-                            downlader_obj.delete_torrents(delete_file=False,
-                                                          ids=[torrent.get("id")])
+                            downlader_obj.delete_torrents(
+                                delete_file=False, ids=[torrent.get("id")]
+                            )
                             logger.info(f"自动删种任务 删除种子：{text_item}")
                             message_text = f"{message_text}\n{text_item}"
                     elif self._action == "deletefile":
-                        message_text = f"{downloader.title()} 共删除{len(torrents)}个种子及文件"
+                        message_text = (
+                            f"{downloader.title()} 共删除{len(torrents)}个种子及文件"
+                        )
                         for torrent in torrents:
                             if self._event.is_set():
                                 logger.info(f"自动删种服务停止")
                                 return
-                            text_item = f"{torrent.get('name')} " \
-                                        f"来自站点：{torrent.get('site')} " \
-                                        f"大小：{StringUtils.str_filesize(torrent.get('size'))}"
+                            text_item = (
+                                f"{torrent.get('name')} "
+                                f"来自站点：{torrent.get('site')} "
+                                f"大小：{StringUtils.str_filesize(torrent.get('size'))}"
+                            )
                             # 删除种子
-                            downlader_obj.delete_torrents(delete_file=True,
-                                                          ids=[torrent.get("id")])
+                            downlader_obj.delete_torrents(
+                                delete_file=True, ids=[torrent.get("id")]
+                            )
                             logger.info(f"自动删种任务 删除种子及文件：{text_item}")
                             message_text = f"{message_text}\n{text_item}"
                     else:
@@ -681,7 +670,7 @@ class TorrentRemoverQB(_PluginBase):
                         self.post_message(
                             mtype=NotificationType.SiteMessage,
                             title=f"【自动删种任务完成】",
-                            text=message_text
+                            text=message_text,
                         )
             except Exception as e:
                 logger.error(f"自动删种任务异常：{str(e)}")
@@ -691,15 +680,19 @@ class TorrentRemoverQB(_PluginBase):
         检查QB下载任务是否符合条件
         """
         # 完成时间
-        date_done = torrent.completion_on if torrent.completion_on > 0 else torrent.added_on
+        date_done = (
+            torrent.completion_on if torrent.completion_on > 0 else torrent.added_on
+        )
         # 现在时间
         date_now = int(time.mktime(datetime.now().timetuple()))
         # 做种时间
         torrent_seeding_time = date_now - date_done if date_done else 0
         # 平均上传速度
-        torrent_upload_avs = torrent.uploaded / torrent_seeding_time if torrent_seeding_time else 0
+        torrent_upload_avs = (
+            torrent.uploaded / torrent_seeding_time if torrent_seeding_time else 0
+        )
         # 大小 单位：GB
-        sizes = self._size.split('-') if self._size else []
+        sizes = self._size.split("-") if self._size else []
         minsize = float(sizes[0]) * 1024 * 1024 * 1024 if sizes else 0
         maxsize = float(sizes[-1]) * 1024 * 1024 * 1024 if sizes else 0
 
@@ -707,10 +700,10 @@ class TorrentRemoverQB(_PluginBase):
         if self._ratio or self._time:
             ratio_met = False
             time_met = False
-            
+
             if self._ratio and torrent.ratio > float(self._ratio):
                 ratio_met = True
-            
+
             if self._time and torrent_seeding_time > float(self._time) * 3600:
                 time_met = True
 
@@ -719,29 +712,37 @@ class TorrentRemoverQB(_PluginBase):
         # ================================================
 
         # 文件大小
-        if self._size and (torrent.size >= int(maxsize) or torrent.size <= int(minsize)):
+        if self._size and (
+            torrent.size >= int(maxsize) or torrent.size <= int(minsize)
+        ):
             return None
         # 平均上传速度
         if self._upspeed and torrent_upload_avs >= float(self._upspeed) * 1024:
             return None
         # 路径关键字
-        if self._pathkeywords and not re.findall(self._pathkeywords, torrent.save_path, re.I):
+        if self._pathkeywords and not re.findall(
+            self._pathkeywords, torrent.save_path, re.I
+        ):
             return None
         # Tracker关键字
-        if self._trackerkeywords and not re.findall(self._trackerkeywords, torrent.tracker, re.I):
+        if self._trackerkeywords and not re.findall(
+            self._trackerkeywords, torrent.tracker, re.I
+        ):
             return None
         # 任务状态
         if self._torrentstates and torrent.state not in self._torrentstates:
             return None
         # 任务分类
-        if self._torrentcategorys and (not torrent.category or torrent.category not in self._torrentcategorys):
+        if self._torrentcategorys and (
+            not torrent.category or torrent.category not in self._torrentcategorys
+        ):
             return None
-            
+
         return {
             "id": torrent.hash,
             "name": torrent.name,
             "site": StringUtils.get_url_sld(torrent.tracker),
-            "size": torrent.size
+            "size": torrent.size,
         }
 
     def __get_tr_torrent(self, torrent: Any) -> Optional[dict]:
@@ -753,13 +754,17 @@ class TorrentRemoverQB(_PluginBase):
         # 现在时间
         date_now = int(time.mktime(datetime.now().timetuple()))
         # 做种时间
-        torrent_seeding_time = date_now - int(time.mktime(date_done.timetuple())) if date_done else 0
+        torrent_seeding_time = (
+            date_now - int(time.mktime(date_done.timetuple())) if date_done else 0
+        )
         # 上传量
         torrent_uploaded = torrent.ratio * torrent.total_size
         # 平均上传速度
-        torrent_upload_avs = torrent_uploaded / torrent_seeding_time if torrent_seeding_time else 0
+        torrent_upload_avs = (
+            torrent_uploaded / torrent_seeding_time if torrent_seeding_time else 0
+        )
         # 大小 单位：GB
-        sizes = self._size.split('-') if self._size else []
+        sizes = self._size.split("-") if self._size else []
         minsize = float(sizes[0]) * 1024 * 1024 * 1024 if sizes else 0
         maxsize = float(sizes[-1]) * 1024 * 1024 * 1024 if sizes else 0
 
@@ -767,25 +772,29 @@ class TorrentRemoverQB(_PluginBase):
         if self._ratio or self._time:
             ratio_met = False
             time_met = False
-            
+
             if self._ratio and torrent.ratio > float(self._ratio):
                 ratio_met = True
-                
+
             if self._time and torrent_seeding_time > float(self._time) * 3600:
                 time_met = True
-                
+
             if not (ratio_met or time_met):
                 return None
         # ================================================
 
         # 文件大小
-        if self._size and (torrent.total_size >= int(maxsize) or torrent.total_size <= int(minsize)):
+        if self._size and (
+            torrent.total_size >= int(maxsize) or torrent.total_size <= int(minsize)
+        ):
             return None
         # 平均上传速度
         if self._upspeed and torrent_upload_avs >= float(self._upspeed) * 1024:
             return None
         # 路径关键字
-        if self._pathkeywords and not re.findall(self._pathkeywords, torrent.download_dir, re.I):
+        if self._pathkeywords and not re.findall(
+            self._pathkeywords, torrent.download_dir, re.I
+        ):
             return None
         # Tracker关键字
         if self._trackerkeywords:
@@ -794,20 +803,24 @@ class TorrentRemoverQB(_PluginBase):
             else:
                 tacker_key_flag = False
                 for tracker in torrent.trackers:
-                    if re.findall(self._trackerkeywords, tracker.get("announce", ""), re.I):
+                    if re.findall(
+                        self._trackerkeywords, tracker.get("announce", ""), re.I
+                    ):
                         tacker_key_flag = True
                         break
                 if not tacker_key_flag:
                     return None
         # 错误信息
-        if self._errorkeywords and not re.findall(self._errorkeywords, torrent.error_string, re.I):
+        if self._errorkeywords and not re.findall(
+            self._errorkeywords, torrent.error_string, re.I
+        ):
             return None
-            
+
         return {
             "id": torrent.hashString,
             "name": torrent.name,
             "site": torrent.trackers[0].get("sitename") if torrent.trackers else "",
-            "size": torrent.total_size
+            "size": torrent.total_size,
         }
 
     def get_remove_torrents(self, downloader: str):
@@ -820,7 +833,7 @@ class TorrentRemoverQB(_PluginBase):
         downloader_config = self.__get_downloader_config(downloader)
         # 标题
         if self._labels:
-            tags = self._labels.split(',')
+            tags = self._labels.split(",")
         else:
             tags = []
         if self._mponly:
@@ -855,17 +868,23 @@ class TorrentRemoverQB(_PluginBase):
                         plus_id = torrent.hashString
                         plus_name = torrent.name
                         plus_size = torrent.total_size
-                        plus_site = torrent.trackers[0].get("sitename") if torrent.trackers else ""
+                        plus_site = (
+                            torrent.trackers[0].get("sitename")
+                            if torrent.trackers
+                            else ""
+                        )
                     # 比对名称和大小
-                    if plus_name == name \
-                            and plus_size == size \
-                            and plus_id not in remove_ids:
+                    if (
+                        plus_name == name
+                        and plus_size == size
+                        and plus_id not in remove_ids
+                    ):
                         remove_torrents_plus.append(
                             {
                                 "id": plus_id,
                                 "name": plus_name,
                                 "site": plus_site,
-                                "size": plus_size
+                                "size": plus_size,
                             }
                         )
             if remove_torrents_plus:
