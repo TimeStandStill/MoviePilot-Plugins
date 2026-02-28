@@ -9,6 +9,7 @@ from apscheduler.triggers.cron import CronTrigger
 
 from app.log import logger
 from app.plugins import _PluginBase
+from app.core.message import post_message  # 引入消息推送模块
 
 
 class TMMMover(_PluginBase):
@@ -18,7 +19,7 @@ class TMMMover(_PluginBase):
 
     plugin_name = "TMM 元数据转移助手"
     plugin_desc = "根据 TMM NFO 元数据自动分拣并跨挂载点迁移媒体目录"
-    plugin_version = "1.1.4"  # 更新了版本号
+    plugin_version = "1.1.5"  # 更新了版本号
     plugin_author = "QB"
     author_url = "https://github.com/TimeStandStill/MoviePilot-Plugins"
     plugin_icon = "https://github.com/TimeStandStill/MoviePilot-Plugins/blob/main/Gemini_Generated_Image_6wo4py6wo4py6wo4.png"
@@ -44,6 +45,7 @@ class TMMMover(_PluginBase):
         self._default_movie_path: str = ""
         self._default_series_path: str = ""
         self._cron: str = ""
+        self._notify_enabled: bool = False  # 新增通知开关状态
 
     def init_plugin(self, config: dict = None):
         """
@@ -56,12 +58,13 @@ class TMMMover(_PluginBase):
         self._default_movie_path = (config.get("default_movie_path") or "").strip()
         self._default_series_path = (config.get("default_series_path") or "").strip()
         self._cron = (config.get("cron") or "").strip()
+        self._notify_enabled = config.get("notify_enabled", False)  # 读取通知配置
 
         movie_ready = bool(self._source_movie_path and self._default_movie_path)
         series_ready = bool(self._source_series_path and self._default_series_path)
         self._enabled = bool(movie_ready or series_ready)
 
-        logger.info(f"【TMM转移助手】配置已加载: 电影就绪={movie_ready}, 剧集就绪={series_ready}, 状态={'启用' if self._enabled else '未完全配置'}")
+        logger.info(f"【TMM转移助手】配置已加载: 电影就绪={movie_ready}, 剧集就绪={series_ready}, 状态={'启用' if self._enabled else '未完全配置'}, 通知开关={self._notify_enabled}")
 
     def get_state(self) -> bool:
         return self._enabled
@@ -179,6 +182,22 @@ class TMMMover(_PluginBase):
                                         }
                                     }
                                 ]
+                            },
+                            {
+                                "component": "VCol",
+                                "props": {"cols": 12},
+                                "content": [
+                                    {
+                                        "component": "VSwitch",
+                                        "props": {
+                                            "model": "notify_enabled",
+                                            "label": "启用执行结果通知",
+                                            "color": "primary",
+                                            "hint": "开启后，每次手动或定时执行完毕会发送通知到系统消息通道",
+                                            "persistent-hint": True
+                                        }
+                                    }
+                                ]
                             }
                         ]
                     }
@@ -191,7 +210,8 @@ class TMMMover(_PluginBase):
             "source_series_path": "",
             "default_movie_path": "",
             "default_series_path": "",
-            "cron": "0 */6 * * *"
+            "cron": "0 */6 * * *",
+            "notify_enabled": False
         }
         return form, model
 
@@ -310,9 +330,22 @@ class TMMMover(_PluginBase):
         total_skipped = movie_skipped + series_skipped
         total_err = movie_err + series_err
         
-        summary = f"后台任务执行完成！成功: {total_moved} 个，跳过未规范/已存在: {total_skipped} 个，失败: {total_err} 个。"
-        logger.info(f"【TMM转移助手】{summary}")
-        return summary
+        summary_title = "【TMM转移助手】任务执行完毕"
+        summary_text = f"后台任务执行完成！\n成功转移: {total_moved} 个\n跳过未规范/已存在: {total_skipped} 个\n失败: {total_err} 个。"
+        logger.info(f"【TMM转移助手】{summary_text.replace(chr(10), ' ')}")
+
+        # 推送消息通知
+        if self._notify_enabled:
+            try:
+                post_message(
+                    title=summary_title,
+                    text=summary_text
+                )
+                logger.info("【TMM转移助手】已成功发送运行结果通知")
+            except Exception as e:
+                logger.error(f"【TMM转移助手】发送通知失败: {str(e)}")
+
+        return summary_text.replace('\n', ' ')
 
     def _scan_source_dir(self, source_path: str, mode: str) -> Tuple[int, int, int]:
         if not source_path:
