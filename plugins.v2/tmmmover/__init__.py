@@ -9,7 +9,6 @@ from apscheduler.triggers.cron import CronTrigger
 
 from app.log import logger
 from app.plugins import _PluginBase
-from app.core.message import post_message  # 引入消息推送模块
 
 
 class TMMMover(_PluginBase):
@@ -19,7 +18,7 @@ class TMMMover(_PluginBase):
 
     plugin_name = "TMM 元数据转移助手"
     plugin_desc = "根据 TMM NFO 元数据自动分拣并跨挂载点迁移媒体目录"
-    plugin_version = "1.1.5"  # 更新了版本号
+    plugin_version = "1.1.5"
     plugin_author = "QB"
     author_url = "https://github.com/TimeStandStill/MoviePilot-Plugins"
     plugin_icon = "https://github.com/TimeStandStill/MoviePilot-Plugins/blob/main/Gemini_Generated_Image_6wo4py6wo4py6wo4.png"
@@ -334,10 +333,10 @@ class TMMMover(_PluginBase):
         summary_text = f"后台任务执行完成！\n成功转移: {total_moved} 个\n跳过未规范/已存在: {total_skipped} 个\n失败: {total_err} 个。"
         logger.info(f"【TMM转移助手】{summary_text.replace(chr(10), ' ')}")
 
-        # 推送消息通知
+        # 推送消息通知，直接使用 _PluginBase 提供的 self.post_message 即可
         if self._notify_enabled:
             try:
-                post_message(
+                self.post_message(
                     title=summary_title,
                     text=summary_text
                 )
