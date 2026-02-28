@@ -3,7 +3,7 @@
     "name": "TMM 元数据转移助手",
     "description": "根据 TMM NFO 元数据自动分拣电影和剧集，智能按地区/类型分类到目标目录，支持跨挂载点迁移，并对未刮削或未完成刮削的目录进行安全跳过处理",
     "labels": "文件整理,TMM",
-    "version": "1.1.2",
+    "version": "1.1.3",
     "icon": "https://github.com/TimeStandStill/MoviePilot-Plugins/blob/main/Gemini_Generated_Image_6wo4py6wo4py6wo4.png",
     "author": "QB",
     "level": 1,
