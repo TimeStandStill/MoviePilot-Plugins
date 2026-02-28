@@ -1,3 +1,4 @@
+import re
 import shutil
 import threading
 import xml.etree.ElementTree as ET
@@ -17,7 +18,7 @@ class TMMMover(_PluginBase):
 
     plugin_name = "TMM 元数据转移助手"
     plugin_desc = "根据 TMM NFO 元数据自动分拣并跨挂载点迁移媒体目录"
-    plugin_version = "1.1.3"
+    plugin_version = "1.1.4"  # 更新了版本号
     plugin_author = "QB"
     author_url = "https://github.com/TimeStandStill/MoviePilot-Plugins"
     plugin_icon = "https://github.com/TimeStandStill/MoviePilot-Plugins/blob/main/Gemini_Generated_Image_6wo4py6wo4py6wo4.png"
@@ -224,7 +225,7 @@ class TMMMover(_PluginBase):
                             {
                                 "component": "div",
                                 "props": {"class": "text-body-2 text-medium-emphasis mb-6 text-center"},
-                                "text": "点击下方按钮，立即扫描来源目录并执行 TMM 元数据分类与跨挂载点迁移操作。未刮削（无NFO文件）的目录将被安全跳过。",
+                                "text": "点击下方按钮，立即扫描来源目录并执行 TMM 元数据分类与跨挂载点迁移操作。未刮削（无NFO文件）及未规范重命名的目录将被安全跳过。",
                             },
                             {
                                 "component": "VBtn",
@@ -309,7 +310,7 @@ class TMMMover(_PluginBase):
         total_skipped = movie_skipped + series_skipped
         total_err = movie_err + series_err
         
-        summary = f"后台任务执行完成！成功: {total_moved} 个，跳过未刮削/已存在: {total_skipped} 个，失败: {total_err} 个。"
+        summary = f"后台任务执行完成！成功: {total_moved} 个，跳过未规范/已存在: {total_skipped} 个，失败: {total_err} 个。"
         logger.info(f"【TMM转移助手】{summary}")
         return summary
 
@@ -342,14 +343,27 @@ class TMMMover(_PluginBase):
     def _is_deleted_by_tmm_dir(self, folder: Path) -> bool:
         name = folder.name.strip()
         return name == ".deletedByTMM" or name.endswith(".deletedByTMM")
+        
+    def _has_year_in_name(self, folder_name: str) -> bool:
+        """
+        检查文件夹名称中是否包含带有年份的括号结构，例如 (2024) 或 （2024）
+        """
+        # 正则表达式匹配：英文或中文左括号 + 4位数字 + 英文或中文右括号
+        return bool(re.search(r'[\(（]\d{4}[\)）]', folder_name))
 
     def _process_one_folder(self, folder: Path, mode: str) -> bool:
         """
-        处理单个目录：强校验是否刮削
+        处理单个目录：强校验是否刮削，以及是否完成重命名
         """
+        # 1. 重命名校验（必须包含年份括号）
+        if not self._has_year_in_name(folder.name):
+            logger.info(f"【TMM转移助手】未重命名规范 (未包含年份括号)，已安全跳过: {folder.name}")
+            return False
+
+        # 2. 刮削完成校验
         nfo_files = list(folder.glob("*.nfo"))
         if not nfo_files:
-            logger.info(f"【TMM转移助手】未刮削 (无 NFO 文件)，已安全跳过: {folder.name}")
+            logger.info(f"【TMM转移助手】未刮削完成 (无 NFO 文件)，已安全跳过: {folder.name}")
             return False
 
         if mode == "movie":
