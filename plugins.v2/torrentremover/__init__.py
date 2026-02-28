@@ -26,7 +26,7 @@ class TorrentRemover(_PluginBase):
     # 插件图标
     plugin_icon = "delete.jpg"
     # 插件版本
-    plugin_version = "2.2"
+    plugin_version = "3.0"
     # 插件作者
     plugin_author = "QB"
     # 作者主页
@@ -702,25 +702,41 @@ class TorrentRemover(_PluginBase):
         sizes = self._size.split('-') if self._size else []
         minsize = float(sizes[0]) * 1024 * 1024 * 1024 if sizes else 0
         maxsize = float(sizes[-1]) * 1024 * 1024 * 1024 if sizes else 0
-        # 分享率
-        if self._ratio and torrent.ratio <= float(self._ratio):
-            return None
-        # 做种时间 单位：小时
-        if self._time and torrent_seeding_time <= float(self._time) * 3600:
-            return None
+
+        # ======= 修改点：分享率 和 做种时间 为“或” =======
+        if self._ratio or self._time:
+            ratio_met = False
+            time_met = False
+            
+            if self._ratio and torrent.ratio > float(self._ratio):
+                ratio_met = True
+            
+            if self._time and torrent_seeding_time > float(self._time) * 3600:
+                time_met = True
+
+            if not (ratio_met or time_met):
+                return None
+        # ================================================
+
         # 文件大小
         if self._size and (torrent.size >= int(maxsize) or torrent.size <= int(minsize)):
             return None
+        # 平均上传速度
         if self._upspeed and torrent_upload_avs >= float(self._upspeed) * 1024:
             return None
+        # 路径关键字
         if self._pathkeywords and not re.findall(self._pathkeywords, torrent.save_path, re.I):
             return None
+        # Tracker关键字
         if self._trackerkeywords and not re.findall(self._trackerkeywords, torrent.tracker, re.I):
             return None
+        # 任务状态
         if self._torrentstates and torrent.state not in self._torrentstates:
             return None
+        # 任务分类
         if self._torrentcategorys and (not torrent.category or torrent.category not in self._torrentcategorys):
             return None
+            
         return {
             "id": torrent.hash,
             "name": torrent.name,
@@ -740,23 +756,38 @@ class TorrentRemover(_PluginBase):
         torrent_seeding_time = date_now - int(time.mktime(date_done.timetuple())) if date_done else 0
         # 上传量
         torrent_uploaded = torrent.ratio * torrent.total_size
-        # 平均上传速茺
+        # 平均上传速度
         torrent_upload_avs = torrent_uploaded / torrent_seeding_time if torrent_seeding_time else 0
         # 大小 单位：GB
         sizes = self._size.split('-') if self._size else []
         minsize = float(sizes[0]) * 1024 * 1024 * 1024 if sizes else 0
         maxsize = float(sizes[-1]) * 1024 * 1024 * 1024 if sizes else 0
-        # 分享率
-        if self._ratio and torrent.ratio <= float(self._ratio):
-            return None
-        if self._time and torrent_seeding_time <= float(self._time) * 3600:
-            return None
+
+        # ======= 修改点：分享率 和 做种时间 为“或” =======
+        if self._ratio or self._time:
+            ratio_met = False
+            time_met = False
+            
+            if self._ratio and torrent.ratio > float(self._ratio):
+                ratio_met = True
+                
+            if self._time and torrent_seeding_time > float(self._time) * 3600:
+                time_met = True
+                
+            if not (ratio_met or time_met):
+                return None
+        # ================================================
+
+        # 文件大小
         if self._size and (torrent.total_size >= int(maxsize) or torrent.total_size <= int(minsize)):
             return None
+        # 平均上传速度
         if self._upspeed and torrent_upload_avs >= float(self._upspeed) * 1024:
             return None
+        # 路径关键字
         if self._pathkeywords and not re.findall(self._pathkeywords, torrent.download_dir, re.I):
             return None
+        # Tracker关键字
         if self._trackerkeywords:
             if not torrent.trackers:
                 return None
@@ -768,8 +799,10 @@ class TorrentRemover(_PluginBase):
                         break
                 if not tacker_key_flag:
                     return None
+        # 错误信息
         if self._errorkeywords and not re.findall(self._errorkeywords, torrent.error_string, re.I):
             return None
+            
         return {
             "id": torrent.hashString,
             "name": torrent.name,
