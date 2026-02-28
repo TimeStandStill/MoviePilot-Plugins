@@ -20,13 +20,13 @@ lock = threading.Lock()
 
 class TorrentRemover(_PluginBase):
     # 插件名称
-    plugin_name = "自动删种"
-    # 插件描述
-    plugin_desc = "自动删除下载器中的下载任务。"
+    plugin_name = "自动删种 (QB版)"
+    # 插件描述（从原作者 jxxghp 的自动删种插件复制）
+    plugin_desc = "从原作者 jxxghp 的自动删种插件复制。自动删除下载器中的下载任务。"
     # 插件图标
     plugin_icon = "delete.jpg"
     # 插件版本
-    plugin_version = "3.0"
+    plugin_version = "1.0"
     # 插件作者
     plugin_author = "QB"
     # 作者主页
@@ -145,8 +145,8 @@ class TorrentRemover(_PluginBase):
         """
         if self.get_state():
             return [{
-                "id": "TorrentRemover",
-                "name": "自动删种服务",
+                "id": "TorrentRemoverQB",
+                "name": "自动删种 (QB版) 服务",
                 "trigger": CronTrigger.from_crontab(self._cron),
                 "func": self.delete_torrents,
                 "kwargs": {}
