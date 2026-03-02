@@ -20,7 +20,7 @@ class TMMMover(_PluginBase):
     plugin_desc = (
         "根据 TMM NFO 元数据自动分拣并跨挂载点迁移媒体目录，并自动清理废弃目录"
     )
-    plugin_version = "1.1.7"
+    plugin_version = "1.1.8"
     plugin_author = "QB"
     author_url = "https://github.com/TimeStandStill/MoviePilot-Plugins"
     plugin_icon = "sync.png"
@@ -462,7 +462,8 @@ class TMMMover(_PluginBase):
             ("hktw", ["香港", "台湾", "港台", "港剧", "台剧"]),
             ("jpkr", ["日本", "韩国", "日韩", "日剧", "韩剧"]),
             ("mainland", ["中国大陆", "中国", "大陆", "内地", "国产", "华语"]),
-            ("western", ["美国", "英国", "欧美", "欧洲", "加拿大", "澳大利亚"]),
+            # 扩充了 western 国家的关键词，加入了以色列及其他常见欧洲、中东国家
+            ("western", ["美国", "英国", "欧美", "欧洲", "加拿大", "澳大利亚", "法国", "德国", "意大利", "西班牙", "俄罗斯", "以色列", "北欧", "中东"]),
         ]
 
         for category_key, keywords in category_rules:
@@ -473,8 +474,8 @@ class TMMMover(_PluginBase):
             ):
                 return self.SERIES_CATEGORIES[category_key]
 
-        # 所有规则都没匹配到，默认兜底
-        return self.SERIES_CATEGORIES["mainland"]
+        # 所有规则都没匹配到，默认兜底改为欧美剧集
+        return self.SERIES_CATEGORIES["western"]
 
     def _extract_tvshow_meta(self, tvshow_nfo: Path) -> List[str]:
         values: List[str] = []
