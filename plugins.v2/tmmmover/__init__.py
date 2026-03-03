@@ -20,7 +20,7 @@ class TMMMover(_PluginBase):
     plugin_desc = (
         "根据 TMM NFO 元数据自动分拣并跨挂载点迁移媒体目录，并自动清理废弃目录"
     )
-    plugin_version = "1.1.8"
+    plugin_version = "1.1.9" # 版本号升级至 1.1.9，包含通知详情优化
     plugin_author = "QB"
     author_url = "https://github.com/TimeStandStill/MoviePilot-Plugins"
     plugin_icon = "sync.png"
@@ -46,7 +46,7 @@ class TMMMover(_PluginBase):
         self._default_movie_path: str = ""
         self._default_series_path: str = ""
         self._cron: str = ""
-        self._notify_enabled: bool = False  # 新增通知开关状态
+        self._notify_enabled: bool = False  # 通知开关状态
 
     def init_plugin(self, config: dict = None):
         """
@@ -59,7 +59,7 @@ class TMMMover(_PluginBase):
         self._default_movie_path = (config.get("default_movie_path") or "").strip()
         self._default_series_path = (config.get("default_series_path") or "").strip()
         self._cron = (config.get("cron") or "").strip()
-        self._notify_enabled = config.get("notify_enabled", False)  # 读取通知配置
+        self._notify_enabled = config.get("notify_enabled", False)
 
         movie_ready = bool(self._source_movie_path and self._default_movie_path)
         series_ready = bool(self._source_series_path and self._default_series_path)
@@ -307,7 +307,6 @@ class TMMMover(_PluginBase):
         """
         logger.info("【TMM转移助手】收到手动运行指令，正在后台启动任务...")
         try:
-            # 开启独立线程运行核心逻辑，立刻向前端返回成功消息
             threading.Thread(target=self.run_once, daemon=True).start()
             return {
                 "code": 0,
@@ -327,22 +326,25 @@ class TMMMover(_PluginBase):
             return msg
 
         logger.info(f"【TMM转移助手】=== 开始执行后台扫描任务 ===")
-        movie_moved, movie_skipped, movie_err = self._scan_source_dir(
-            self._source_movie_path, "movie"
-        )
-        series_moved, series_skipped, series_err = self._scan_source_dir(
-            self._source_series_path, "series"
-        )
+        
+        movie_res = self._scan_source_dir(self._source_movie_path, "movie")
+        series_res = self._scan_source_dir(self._source_series_path, "series")
 
-        total_moved = movie_moved + series_moved
-        total_skipped = movie_skipped + series_skipped
-        total_err = movie_err + series_err
+        # 汇总名单
+        final_res = {
+            "moved": movie_res["moved"] + series_res["moved"],
+            "skipped_invalid": movie_res["skipped_invalid"] + series_res["skipped_invalid"],
+            "skipped_exists": movie_res["skipped_exists"] + series_res["skipped_exists"],
+            "errors": movie_res["errors"] + series_res["errors"],
+        }
 
+        # 生成通知文本
         summary_title = "【TMM转移助手】任务执行完毕"
-        summary_text = f"后台任务执行完成！\n成功转移: {total_moved} 个\n跳过未规范/已存在: {total_skipped} 个\n失败: {total_err} 个。"
-        logger.info(f"【TMM转移助手】{summary_text.replace(chr(10), ' ')}")
+        summary_text = self._build_notification_text(final_res)
 
-        # 推送消息通知，直接使用 _PluginBase 提供的 self.post_message 即可
+        logger.info(f"【TMM转移助手】后台任务执行完成！成功转移: {len(final_res['moved'])} 个, 目标已存在: {len(final_res['skipped_exists'])} 个, 未规范: {len(final_res['skipped_invalid'])} 个, 失败: {len(final_res['errors'])} 个。")
+
+        # 推送消息通知
         if self._notify_enabled:
             try:
                 self.post_message(title=summary_title, text=summary_text)
@@ -351,17 +353,47 @@ class TMMMover(_PluginBase):
                 logger.error(f"【TMM转移助手】发送通知失败: {str(e)}")
 
         return summary_text.replace("\n", " ")
+        
+    def _build_notification_text(self, res: Dict[str, List[str]]) -> str:
+        """
+        生成结构化、包含详细名单的通知文本
+        """
+        lines = ["后台扫描与转移任务已执行完成。\n"]
 
-    def _scan_source_dir(self, source_path: str, mode: str) -> Tuple[int, int, int]:
+        lines.append(f"✅ 成功转移: {len(res['moved'])} 个")
+        if res['moved']:
+            lines.append(f"   ({ '、'.join(res['moved']) })")
+        
+        lines.append(f"\n⏭️ 跳过未规范/未刮削: {len(res['skipped_invalid'])} 个")
+        if res['skipped_invalid']:
+            lines.append(f"   ({ '、'.join(res['skipped_invalid']) })")
+
+        lines.append(f"\n⚠️ 目标已存在: {len(res['skipped_exists'])} 个")
+        if res['skipped_exists']:
+            lines.append(f"   ({ '、'.join(res['skipped_exists']) })")
+
+        lines.append(f"\n❌ 转移失败: {len(res['errors'])} 个")
+        if res['errors']:
+            lines.append(f"   ({ '、'.join(res['errors']) })")
+
+        return "\n".join(lines)
+
+    def _scan_source_dir(self, source_path: str, mode: str) -> Dict[str, List[str]]:
+        res = {
+            "moved": [],
+            "skipped_invalid": [],
+            "skipped_exists": [],
+            "errors": []
+        }
+        
         if not source_path:
-            return 0, 0, 0
+            return res
 
         source_dir = Path(source_path)
         if not source_dir.exists() or not source_dir.is_dir():
             logger.warning(f"【TMM转移助手】来源目录无效或不存在，跳过: {source_dir}")
-            return 0, 0, 0
+            return res
 
-        moved, skipped, err = 0, 0, 0
         logger.info(f"【TMM转移助手】正在扫描 ({mode} 模式): {source_dir}")
 
         for child in source_dir.iterdir():
@@ -372,25 +404,26 @@ class TMMMover(_PluginBase):
             if self._is_deleted_by_tmm_dir(child):
                 try:
                     shutil.rmtree(child)
-                    logger.info(
-                        f"【TMM转移助手】已自动清理 TMM 删除标记目录: {child.name}"
-                    )
+                    logger.info(f"【TMM转移助手】已自动清理 TMM 删除标记目录: {child.name}")
                 except Exception as e:
-                    logger.error(
-                        f"【TMM转移助手】清理 TMM 删除标记目录失败 [{child.name}]: {str(e)}"
-                    )
+                    logger.error(f"【TMM转移助手】清理 TMM 删除标记目录失败 [{child.name}]: {str(e)}")
                 continue
 
             try:
-                if self._process_one_folder(child, mode):
-                    moved += 1
-                else:
-                    skipped += 1
+                status = self._process_one_folder(child, mode)
+                if status == "MOVED":
+                    res["moved"].append(child.name)
+                elif status == "SKIPPED_INVALID":
+                    res["skipped_invalid"].append(child.name)
+                elif status == "SKIPPED_EXISTS":
+                    res["skipped_exists"].append(child.name)
+                elif status == "ERROR":
+                    res["errors"].append(child.name)
             except Exception as e:
-                err += 1
-                logger.error(f"【TMM转移助手】处理子目录失败 [{child.name}]: {str(e)}")
+                res["errors"].append(child.name)
+                logger.error(f"【TMM转移助手】处理子目录发生未捕获异常 [{child.name}]: {str(e)}")
 
-        return moved, skipped, err
+        return res
 
     def _is_deleted_by_tmm_dir(self, folder: Path) -> bool:
         name = folder.name.strip()
@@ -400,27 +433,22 @@ class TMMMover(_PluginBase):
         """
         检查文件夹名称中是否包含带有年份的括号结构，例如 (2024) 或 （2024）
         """
-        # 正则表达式匹配：英文或中文左括号 + 4位数字 + 英文或中文右括号
         return bool(re.search(r"[\(（]\d{4}[\)）]", folder_name))
 
-    def _process_one_folder(self, folder: Path, mode: str) -> bool:
+    def _process_one_folder(self, folder: Path, mode: str) -> str:
         """
-        处理单个目录：强校验是否刮削，以及是否完成重命名
+        处理单个目录，返回处理状态码
         """
         # 1. 重命名校验（必须包含年份括号）
         if not self._has_year_in_name(folder.name):
-            logger.info(
-                f"【TMM转移助手】未重命名规范 (未包含年份括号)，已安全跳过: {folder.name}"
-            )
-            return False
+            logger.info(f"【TMM转移助手】未重命名规范 (未包含年份括号)，已安全跳过: {folder.name}")
+            return "SKIPPED_INVALID"
 
         # 2. 刮削完成校验
         nfo_files = list(folder.glob("*.nfo"))
         if not nfo_files:
-            logger.info(
-                f"【TMM转移助手】未刮削完成 (无 NFO 文件)，已安全跳过: {folder.name}"
-            )
-            return False
+            logger.info(f"【TMM转移助手】未刮削完成 (无 NFO 文件)，已安全跳过: {folder.name}")
+            return "SKIPPED_INVALID"
 
         if mode == "movie":
             target_root = Path(self._default_movie_path)
@@ -433,10 +461,8 @@ class TMMMover(_PluginBase):
                         break
 
             if not tvshow_nfo.exists():
-                logger.info(
-                    f"【TMM转移助手】剧集未刮削完成 (缺少主干 tvshow.nfo)，已跳过: {folder.name}"
-                )
-                return False
+                logger.info(f"【TMM转移助手】剧集未刮削完成 (缺少主干 tvshow.nfo)，已跳过: {folder.name}")
+                return "SKIPPED_INVALID"
 
             target_root = self._resolve_series_target_root(tvshow_nfo)
 
@@ -451,18 +477,14 @@ class TMMMover(_PluginBase):
     def _resolve_series_category_name(self, meta_values: List[str]) -> str:
         normalized_values = [value.lower() for value in meta_values]
 
-        # 匹配规则列表（优先级从上到下）
         category_rules = [
-            # 动漫拥有最高绝对优先级：只要出现这些字眼，无视其他国家或类型标签，统统归入【动漫】
             ("anime", ["动漫", "动画", "anime", "animation", "卡通", "cartoon"]),
-            # 其他分类
             ("shortdrama", ["短剧", "微短剧", "短片"]),
             ("documentary", ["纪录片", "纪录", "documentary"]),
             ("variety", ["综艺", "真人秀", "脱口秀", "variety", "reality"]),
             ("hktw", ["香港", "台湾", "港台", "港剧", "台剧"]),
             ("jpkr", ["日本", "韩国", "日韩", "日剧", "韩剧"]),
             ("mainland", ["中国大陆", "中国", "大陆", "内地", "国产", "华语"]),
-            # 扩充了 western 国家的关键词，加入了以色列及其他常见欧洲、中东国家
             ("western", ["美国", "英国", "欧美", "欧洲", "加拿大", "澳大利亚", "法国", "德国", "意大利", "西班牙", "俄罗斯", "以色列", "北欧", "中东"]),
         ]
 
@@ -474,7 +496,6 @@ class TMMMover(_PluginBase):
             ):
                 return self.SERIES_CATEGORIES[category_key]
 
-        # 所有规则都没匹配到，默认兜底改为欧美剧集
         return self.SERIES_CATEGORIES["western"]
 
     def _extract_tvshow_meta(self, tvshow_nfo: Path) -> List[str]:
@@ -512,20 +533,21 @@ class TMMMover(_PluginBase):
                 uniq.append(value)
         return uniq
 
-    def _safe_move_folder(self, src_dir: Path, dst_dir: Path) -> bool:
+    def _safe_move_folder(self, src_dir: Path, dst_dir: Path) -> str:
+        """
+        执行跨盘移动操作，返回状态码
+        """
         if dst_dir.exists():
             logger.info(f"【TMM转移助手】目标目录已存在，跳过覆盖: {dst_dir.name}")
-            return False
+            return "SKIPPED_EXISTS"
 
         dst_dir.parent.mkdir(parents=True, exist_ok=True)
         try:
             shutil.move(str(src_dir), str(dst_dir))
-            logger.info(
-                f"【TMM转移助手】✔ 成功移动: [{src_dir.name}] -> [{dst_dir.parent.name}]"
-            )
-            return True
+            logger.info(f"【TMM转移助手】✔ 成功移动: [{src_dir.name}] -> [{dst_dir.parent.name}]")
+            return "MOVED"
         except Exception as e:
             logger.error(f"【TMM转移助手】❌ 移动失败 [{src_dir.name}]: {str(e)}")
             if dst_dir.exists() and src_dir.exists():
                 logger.error(f"【TMM转移助手】⚠️ 发生不完整迁移，请手动检查: {dst_dir}")
-            return False
+            return "ERROR"
