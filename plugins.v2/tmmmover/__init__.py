@@ -20,7 +20,7 @@ class TMMMover(_PluginBase):
     plugin_desc = (
         "根据 TMM NFO 元数据自动分拣并跨挂载点迁移媒体目录，并自动清理废弃目录"
     )
-    plugin_version = "1.1.9" # 版本号升级至 1.1.9，包含通知详情优化
+    plugin_version = "1.1.11"
     plugin_author = "QB"
     author_url = "https://github.com/TimeStandStill/MoviePilot-Plugins"
     plugin_icon = "sync.png"
@@ -360,21 +360,27 @@ class TMMMover(_PluginBase):
         """
         lines = ["后台扫描与转移任务已执行完成。\n"]
 
+        # 成功转移的，我们全量显示，不截断，方便确认
         lines.append(f"✅ 成功转移: {len(res['moved'])} 个")
-        if res['moved']:
-            lines.append(f"   ({ '、'.join(res['moved']) })")
+        for item in res['moved']:
+            lines.append(f"  - {item}")
         
+        # 内部辅助函数：格式化异常列表，最多显示3条，超长截断为20字符+省略号
+        def _format_limited_list(item_list: List[str], max_show: int = 3, max_len: int = 20):
+            res_lines = []
+            for item in item_list[:max_show]:
+                display_name = item[:max_len] + "..." if len(item) > max_len else item
+                res_lines.append(f"  - {display_name}")
+            return res_lines
+
         lines.append(f"\n⏭️ 跳过未规范/未刮削: {len(res['skipped_invalid'])} 个")
-        if res['skipped_invalid']:
-            lines.append(f"   ({ '、'.join(res['skipped_invalid']) })")
+        lines.extend(_format_limited_list(res['skipped_invalid']))
 
         lines.append(f"\n⚠️ 目标已存在: {len(res['skipped_exists'])} 个")
-        if res['skipped_exists']:
-            lines.append(f"   ({ '、'.join(res['skipped_exists']) })")
+        lines.extend(_format_limited_list(res['skipped_exists']))
 
         lines.append(f"\n❌ 转移失败: {len(res['errors'])} 个")
-        if res['errors']:
-            lines.append(f"   ({ '、'.join(res['errors']) })")
+        lines.extend(_format_limited_list(res['errors']))
 
         return "\n".join(lines)
 
