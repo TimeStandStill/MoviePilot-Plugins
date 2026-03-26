@@ -20,7 +20,7 @@ class TMMMover(_PluginBase):
     plugin_desc = (
         "根据 TMM NFO 元数据自动分拣并跨挂载点迁移媒体目录，并自动清理废弃目录"
     )
-    plugin_version = "1.1.11"
+    plugin_version = "1.1.12"
     plugin_author = "QB"
     author_url = "https://github.com/TimeStandStill/MoviePilot-Plugins"
     plugin_icon = "sync.png"
@@ -183,7 +183,7 @@ class TMMMover(_PluginBase):
                                         "props": {
                                             "model": "cron",
                                             "label": "定时执行 Cron 表达式",
-                                            "placeholder": "0 */6 * * *",
+                                            "placeholder": "0 * * * *",
                                         },
                                     }
                                 ],
@@ -215,7 +215,7 @@ class TMMMover(_PluginBase):
             "source_series_path": "",
             "default_movie_path": "",
             "default_series_path": "",
-            "cron": "0 */6 * * *",
+            "cron": "0 * * * *",
             "notify_enabled": False,
         }
         return form, model
@@ -344,13 +344,16 @@ class TMMMover(_PluginBase):
 
         logger.info(f"【TMM转移助手】后台任务执行完成！成功转移: {len(final_res['moved'])} 个, 目标已存在: {len(final_res['skipped_exists'])} 个, 未规范: {len(final_res['skipped_invalid'])} 个, 失败: {len(final_res['errors'])} 个。")
 
-        # 推送消息通知
+        # 推送消息通知 (仅在有成功转移或发生错误时发送，避免0变动打扰)
         if self._notify_enabled:
-            try:
-                self.post_message(title=summary_title, text=summary_text)
-                logger.info("【TMM转移助手】已成功发送运行结果通知")
-            except Exception as e:
-                logger.error(f"【TMM转移助手】发送通知失败: {str(e)}")
+            if len(final_res['moved']) > 0 or len(final_res['errors']) > 0:
+                try:
+                    self.post_message(title=summary_title, text=summary_text)
+                    logger.info("【TMM转移助手】已成功发送运行结果通知")
+                except Exception as e:
+                    logger.error(f"【TMM转移助手】发送通知失败: {str(e)}")
+            else:
+                logger.info("【TMM转移助手】本次任务无新增转移且无错误，跳过发送通知。")
 
         return summary_text.replace("\n", " ")
         
