@@ -22,7 +22,7 @@ class TMMMover(_PluginBase):
     plugin_desc = (
         "根据 TMM NFO 自动分拣迁移，并精准提取 TMDB 数据模拟原生图文入库通知"
     )
-    plugin_version = "2.0.3"
+    plugin_version = "2.0.4"
     plugin_author = "QB"
     author_url = "https://github.com/TimeStandStill/MoviePilot-Plugins"
     plugin_icon = "sync.png"
@@ -37,6 +37,17 @@ class TMMMover(_PluginBase):
         "western": "欧美剧集",
         "jpkr": "日韩剧集",
         "variety": "综艺",
+    }
+
+    # TMDB 标准电影流派汉化字典
+    GENRE_MAPPING = {
+        "action": "动作", "adventure": "冒险", "animation": "动画",
+        "comedy": "喜剧", "crime": "犯罪", "documentary": "纪录片",
+        "drama": "剧情", "family": "家庭", "fantasy": "奇幻",
+        "history": "历史", "horror": "恐怖", "music": "音乐",
+        "mystery": "悬疑", "romance": "爱情", "science fiction": "科幻",
+        "sci-fi": "科幻", "tv movie": "电视电影", "thriller": "惊悚",
+        "war": "战争", "western": "西部"
     }
 
     def __init__(self):
@@ -177,9 +188,6 @@ class TMMMover(_PluginBase):
             return "ERROR"
 
     def _send_item_notification(self, target_dir: Path, mode: str, category: str):
-        """
-        NFO 本地解析优先，仅对缺失的公网图源与评分进行无脑按 ID 提取
-        """
         try:
             nfo_file = None
             if mode == "series":
@@ -195,13 +203,11 @@ class TMMMover(_PluginBase):
             tree = ET.parse(nfo_file)
             root = tree.getroot()
 
-            # 1. 纯净提取 NFO 基础信息
             title = root.findtext("title") or target_dir.name
             year = root.findtext("year") or ""
             plot = root.findtext("plot") or "暂无简介"
             if len(plot) > 150: plot = plot[:150] + "..."
 
-            # 2. 竭尽全力从 NFO 中翻找评分
             rating = "0.0"
             ratings_node = root.find("ratings")
             if ratings_node is not None:
@@ -216,7 +222,6 @@ class TMMMover(_PluginBase):
                     if val is not None and val.text: rating = val.text.strip()
                     elif rating_node.text and rating_node.text.strip(): rating = rating_node.text.strip()
 
-            # 3. 寻找公网 HTTP 海报链接 (企微必须)
             image_url = ""
             for thumb in root.findall(".//thumb"):
                 if thumb.text and thumb.text.startswith("http"):
@@ -225,7 +230,6 @@ class TMMMover(_PluginBase):
                     elif not image_url:
                         image_url = thumb.text.strip()
 
-            # 4. 【轻量级补齐】如果没网图或者没评分，且有 TMDB ID，直接查 ID
             if rating in ["0.0", "0", ""] or not image_url:
                 tmdb_id = None
                 for uid in root.findall(".//uniqueid"):
@@ -237,7 +241,6 @@ class TMMMover(_PluginBase):
                 if tmdb_id and str(tmdb_id).isdigit():
                     try:
                         mtype = MediaType.MOVIE if mode == "movie" else MediaType.TV
-                        # 直接用 ID 查询，跳过所有 MP 的目录/正则/洗版识别链
                         tmdb_info = TmdbChain().tmdb_info(tmdbid=int(tmdb_id), mtype=mtype)
                         if tmdb_info:
                             if rating in ["0.0", "0", ""] and tmdb_info.vote_average:
@@ -250,11 +253,67 @@ class TMMMover(_PluginBase):
             try: rating = f"{float(rating):.1f}"
             except: rating = "0.0"
 
+            # ========================
+            # 2.0.4 优化：电影流派智能汉化
+            # ========================
             if mode == "movie" and not category:
-                category = root.findtext("genre") or ""
+                genres = []
+                for g in root.findall(".//genre"):
+                    if g.text:
+                        parts = [p.strip() for p in g.text.replace("|", "/").split("/") if p.strip()]
+                        for p in parts:
+                            genres.append(self.GENRE_MAPPING.get(p.lower(), p))
+                
+                unique_genres = []
+                for g in genres:
+                    if g not in unique_genres:
+                        unique_genres.append(g)
+                category = " / ".join(unique_genres)
 
-            # 5. 统计文件数和大小
             media_exts = {".mp4", ".mkv", ".ts", ".avi", ".rmvb", ".wmv", ".iso", ".m2ts"}
+
+            # ========================
+            # 2.0.4 优化：不连续季数合并算法 (如 S01,S03-S05)
+            # ========================
+            season_str = ""
+            if mode == "series":
+                seasons = set()
+                # 从文件夹名提取 (如 Season 1, Season 02)
+                for p in target_dir.iterdir():
+                    if p.is_dir():
+                        m = re.search(r'(?:Season\s*|S)(\d+)', p.name, re.IGNORECASE)
+                        if m: seasons.add(int(m.group(1)))
+                # 从媒体文件名提取 (如 S01E01)
+                for f in target_dir.rglob("*"):
+                    if f.is_file() and f.suffix.lower() in media_exts:
+                        m = re.search(r'[Ss](\d{1,4})[Ee]\d+', f.name)
+                        if m: seasons.add(int(m.group(1)))
+
+                if seasons:
+                    sorted_s = sorted(list(seasons))
+                    ranges = []
+                    start = sorted_s[0]
+                    prev = sorted_s[0]
+                    
+                    for s in sorted_s[1:]:
+                        if s == prev + 1:
+                            prev = s
+                        else:
+                            if start == prev:
+                                ranges.append(f"S{start:02d}")
+                            else:
+                                ranges.append(f"S{start:02d}-S{prev:02d}")
+                            start = s
+                            prev = s
+                    
+                    # 收尾最后一个区间
+                    if start == prev:
+                        ranges.append(f"S{start:02d}")
+                    else:
+                        ranges.append(f"S{start:02d}-S{prev:02d}")
+                        
+                    season_str = " " + ",".join(ranges)
+
             file_count, total_bytes = 0, 0
             for f in target_dir.rglob("*"):
                 if f.is_file():
@@ -270,8 +329,8 @@ class TMMMover(_PluginBase):
             if "4k" in target_dir.name.lower() or "2160p" in target_dir.name.lower(): res_term = "4K"
             elif "1080p" in target_dir.name.lower(): res_term = "1080p"
 
-            # 6. 纯正原生排版组装
-            msg_title = f"《{title}{' (' + year + ')' if year else ''}》 已入库 ✅"
+            # 将季数追加在标题后方
+            msg_title = f"《{title}{' (' + year + ')' if year else ''}》{season_str} 已入库 ✅"
             parts = [f"⭐️评分：{rating}", f"🎬类型：{'电影' if mode=='movie' else '剧集'}"]
             if category: parts.append(f"📁类别：{category}")
             if res_term: parts.append(f"📦质量：{res_term}")
@@ -282,7 +341,6 @@ class TMMMover(_PluginBase):
                 f"📄共 {file_count} 个文件 ｜ 💾大小：{total_size}"
             )
 
-            # 空图片坚决不传，防止企微卡片变白板报错
             self.post_message(title=msg_title, text=msg_text, image=image_url if image_url else None)
 
         except Exception as e:
