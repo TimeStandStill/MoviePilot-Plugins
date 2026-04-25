@@ -20,7 +20,7 @@ class TMMMover(_PluginBase):
     plugin_desc = (
         "根据 TMM NFO 自动分拣迁移，并精准模拟 MoviePilot 原生图文入库通知"
     )
-    plugin_version = "2.0.1"
+    plugin_version = "2.0.2"
     plugin_author = "QB"
     author_url = "https://github.com/TimeStandStill/MoviePilot-Plugins"
     plugin_icon = "sync.png"
@@ -62,7 +62,7 @@ class TMMMover(_PluginBase):
         self._enabled = bool(movie_ready or series_ready)
 
         logger.info(
-            f"【TMM转移助手 2.0.1】配置已加载: 电影就绪={movie_ready}, 剧集就绪={series_ready}, 状态={'启用' if self._enabled else '未完全配置'}, 伪装入库通知={'开启' if self._notify_enabled else '关闭'}"
+            f"【TMM转移助手 2.0.2】配置已加载: 电影就绪={movie_ready}, 剧集就绪={series_ready}, 状态={'启用' if self._enabled else '未完全配置'}, 伪装入库通知={'开启' if self._notify_enabled else '关闭'}"
         )
 
     def get_state(self) -> bool:
@@ -265,6 +265,12 @@ class TMMMover(_PluginBase):
         try: trigger = CronTrigger.from_crontab(self._cron)
         except: return []
         return [{"id": "scan_move_job", "name": "TMM 目录转移任务", "trigger": trigger, "func": self.run_once}]
+
+    def stop_service(self):
+        """
+        退出插件时执行（MP 强制要求实现的抽象方法）
+        """
+        pass
 
     def api_run_once(self) -> Dict[str, Any]:
         threading.Thread(target=self.run_once, daemon=True).start()
