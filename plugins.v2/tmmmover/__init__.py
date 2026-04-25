@@ -20,7 +20,7 @@ class TMMMover(_PluginBase):
     plugin_desc = (
         "根据 TMM NFO 自动分拣迁移，并精准模拟 MoviePilot 原生图文入库通知"
     )
-    plugin_version = "2.0.0"
+    plugin_version = "2.0.1"
     plugin_author = "QB"
     author_url = "https://github.com/TimeStandStill/MoviePilot-Plugins"
     plugin_icon = "sync.png"
@@ -62,7 +62,7 @@ class TMMMover(_PluginBase):
         self._enabled = bool(movie_ready or series_ready)
 
         logger.info(
-            f"【TMM转移助手 2.0.0】配置已加载: 电影就绪={movie_ready}, 剧集就绪={series_ready}, 状态={'启用' if self._enabled else '未完全配置'}, 伪装入库通知={'开启' if self._notify_enabled else '关闭'}"
+            f"【TMM转移助手 2.0.1】配置已加载: 电影就绪={movie_ready}, 剧集就绪={series_ready}, 状态={'启用' if self._enabled else '未完全配置'}, 伪装入库通知={'开启' if self._notify_enabled else '关闭'}"
         )
 
     def get_state(self) -> bool:
@@ -76,7 +76,7 @@ class TMMMover(_PluginBase):
                 "method": "post",
                 "text": "立即运行",
                 "icon": "mdi-play",
-                "color": "primary"
+                "color": "primary",
             }
         ]
 
@@ -87,7 +87,7 @@ class TMMMover(_PluginBase):
                 "endpoint": self.api_run_once,
                 "auth": "bear",
                 "methods": ["POST"],
-                "summary": "手动触发 TMM 转移任务"
+                "summary": "手动触发 TMM 转移任务",
             }
         ]
 
@@ -109,7 +109,7 @@ class TMMMover(_PluginBase):
                                             "model": "source_movie_path",
                                             "label": "电影来源监控目录",
                                             "placeholder": "/media/source/Movies",
-                                            "hint": "包含电影文件的来源目录",
+                                            "hint": "TMM 刮削好的电影存放目录",
                                             "persistent-hint": True,
                                         },
                                     }
@@ -125,7 +125,7 @@ class TMMMover(_PluginBase):
                                             "model": "source_series_path",
                                             "label": "剧集来源监控目录",
                                             "placeholder": "/media/source/Series",
-                                            "hint": "包含剧集文件的来源目录",
+                                            "hint": "TMM 刮削好的剧集存放目录",
                                             "persistent-hint": True,
                                         },
                                     }
@@ -155,7 +155,7 @@ class TMMMover(_PluginBase):
                                             "model": "default_series_path",
                                             "label": "目标剧集存放根目录",
                                             "placeholder": "/media/series",
-                                            "hint": "插件会在该目录下自动创建分类子目录（如：动漫、大陆剧集等）",
+                                            "hint": "插件将在此目录下自动按分类入库",
                                             "persistent-hint": True,
                                         },
                                     }
@@ -185,7 +185,7 @@ class TMMMover(_PluginBase):
                                             "model": "notify_enabled",
                                             "label": "启用精美入库通知",
                                             "color": "primary",
-                                            "hint": "开启后，每部【成功转移】的影视剧都会发送独立的图文入库通知，静默跳过未刮削或已存在的文件。",
+                                            "hint": "开启后，仅物理转移成功的影视资源会推送模拟 MP 原生的精美图文消息。",
                                             "persistent-hint": True,
                                         },
                                     }
@@ -236,7 +236,7 @@ class TMMMover(_PluginBase):
                                 "props": {
                                     "class": "text-body-2 text-medium-emphasis mb-6 text-center"
                                 },
-                                "text": "点击下方按钮立即扫描。插件已升级至 2.0 静默模式，系统日志记录完整明细，消息中心仅推送成功入库的资源。",
+                                "text": "点击下方按钮立即扫描。插件已升级至 2.0 静默模式，只有成功移入媒体库的资源才会触发入库通知，跳过项仅在后台日志可见。",
                             },
                             {
                                 "component": "VBtn",
@@ -261,37 +261,21 @@ class TMMMover(_PluginBase):
         ]
 
     def get_service(self) -> List[Dict[str, Any]]:
-        if not self.get_state() or not self._cron: 
-            return []
-            
-        try: 
-            trigger = CronTrigger.from_crontab(self._cron)
-        except Exception as e: 
-            logger.error(f"【TMM转移助手】cron 非法({self._cron})：{str(e)}")
-            return []
-            
-        return [
-            {
-                "id": "scan_move_job",
-                "name": "TMM 目录转移任务",
-                "trigger": trigger,
-                "func": self.run_once
-            }
-        ]
+        if not self.get_state() or not self._cron: return []
+        try: trigger = CronTrigger.from_crontab(self._cron)
+        except: return []
+        return [{"id": "scan_move_job", "name": "TMM 目录转移任务", "trigger": trigger, "func": self.run_once}]
 
     def api_run_once(self) -> Dict[str, Any]:
         threading.Thread(target=self.run_once, daemon=True).start()
         return {"code": 0, "msg": "✅ 任务已在后台启动！"}
 
     def run_once(self) -> str:
-        if not self.get_state(): 
-            return "未完全配置"
-        
+        if not self.get_state(): return "未完全配置"
         logger.info(f"【TMM转移助手】=== 开始执行后台扫描任务 ===")
-        
         movie_res = self._scan_source_dir(self._source_movie_path, "movie")
         series_res = self._scan_source_dir(self._source_series_path, "series")
-
+        
         final_moved = len(movie_res["moved"]) + len(series_res["moved"])
         final_skipped = len(movie_res["skipped"]) + len(series_res["skipped"])
         final_errors = len(movie_res["errors"]) + len(series_res["errors"])
@@ -302,41 +286,28 @@ class TMMMover(_PluginBase):
             f"⏭️ 静默跳过: {final_skipped} 个 | "
             f"❌ 处理失败: {final_errors} 个"
         )
-        
         return "任务完成"
 
     def _scan_source_dir(self, source_path: str, mode: str) -> Dict[str, List[str]]:
         res = {"moved": [], "skipped": [], "errors": []}
-        if not source_path: 
-            return res
-        
+        if not source_path: return res
         source_dir = Path(source_path)
-        if not source_dir.exists() or not source_dir.is_dir(): 
-            return res
+        if not source_dir.exists() or not source_dir.is_dir(): return res
 
         for child in source_dir.iterdir():
-            if not child.is_dir(): 
-                continue
-                
+            if not child.is_dir(): continue
             if self._is_deleted_by_tmm_dir(child):
-                try: 
-                    shutil.rmtree(child)
-                except: 
-                    pass
+                try: shutil.rmtree(child)
+                except: pass
                 continue
-
             try:
                 status = self._process_one_folder(child, mode)
-                if status == "MOVED": 
-                    res["moved"].append(child.name)
-                elif status == "SKIPPED": 
-                    res["skipped"].append(child.name)
-                elif status == "ERROR": 
-                    res["errors"].append(child.name)
+                if status == "MOVED": res["moved"].append(child.name)
+                elif status == "SKIPPED": res["skipped"].append(child.name)
+                elif status == "ERROR": res["errors"].append(child.name)
             except Exception as e:
                 res["errors"].append(child.name)
-                logger.error(f"【TMM转移助手】处理目录发生未知异常 [{child.name}]: {str(e)}")
-                
+                logger.error(f"【TMM转移助手】处理失败 [{child.name}]: {str(e)}")
         return res
 
     def _is_deleted_by_tmm_dir(self, folder: Path) -> bool:
@@ -349,10 +320,9 @@ class TMMMover(_PluginBase):
         if not self._has_year_in_name(folder.name):
             logger.info(f"【TMM转移助手】未规范命名，已跳过: {folder.name}")
             return "SKIPPED"
-            
         nfo_files = list(folder.glob("*.nfo"))
         if not nfo_files:
-            logger.info(f"【TMM转移助手】未刮削完毕 (缺少NFO)，已跳过: {folder.name}")
+            logger.info(f"【TMM转移助手】未刮削，已跳过: {folder.name}")
             return "SKIPPED"
 
         if mode == "movie":
@@ -362,29 +332,24 @@ class TMMMover(_PluginBase):
             if not tvshow_nfo.exists():
                 for f in nfo_files:
                     if f.name.lower() == "tvshow.nfo":
-                        tvshow_nfo = f
-                        break
-            if not tvshow_nfo.exists(): 
-                logger.info(f"【TMM转移助手】剧集缺少主干 tvshow.nfo，已跳过: {folder.name}")
+                        tvshow_nfo = f; break
+            if not tvshow_nfo.exists():
+                logger.info(f"【TMM转移助手】剧集缺少主干 NFO，已跳过: {folder.name}")
                 return "SKIPPED"
             target_root = self._resolve_series_target_root(tvshow_nfo)
 
         target_dir = target_root / folder.name
-        
         if target_dir.exists():
-            logger.info(f"【TMM转移助手】目标媒体库已存在同名资源，跳过覆盖: {target_dir.name}")
+            logger.info(f"【TMM转移助手】库中已存在，跳过: {target_dir.name}")
             return "SKIPPED"
             
         target_dir.parent.mkdir(parents=True, exist_ok=True)
-        
         try:
             shutil.move(str(folder), str(target_dir))
-            logger.info(f"【TMM转移助手】✔ 成功移动入库: {target_dir.name}")
-            
+            logger.info(f"【TMM转移助手】✔ 成功入库: {target_dir.name}")
             if self._notify_enabled:
                 category = target_dir.parent.name if mode == "series" else ""
                 self._send_item_notification(target_dir, mode, category)
-                
             return "MOVED"
         except Exception as e:
             logger.error(f"【TMM转移助手】❌ 移动失败 [{folder.name}]: {str(e)}")
@@ -400,35 +365,22 @@ class TMMMover(_PluginBase):
                 if nfo_files:
                     for f in nfo_files:
                         if f.name.lower() != "tvshow.nfo":
-                            nfo_file = f
-                            break
-                    if not nfo_file: 
-                        nfo_file = nfo_files[0]
-            if not nfo_file: 
-                return
+                            nfo_file = f; break
+                    if not nfo_file: nfo_file = nfo_files[0]
+            if not nfo_file: return
 
-            tree = ET.parse(nfo_file)
-            root = tree.getroot()
-
+            tree = ET.parse(nfo_file); root = tree.getroot()
             title = root.findtext("title") or target_dir.name
             year = root.findtext("year") or ""
             plot = root.findtext("plot") or "暂无简介"
-            if len(plot) > 150: 
-                plot = plot[:150] + "..."
+            if len(plot) > 150: plot = plot[:150] + "..."
 
             rating = "0.0"
             rating_node = root.find(".//rating")
             if rating_node is not None:
-                if rating_node.text and rating_node.text.strip():
-                    rating = rating_node.text.strip()
-                else:
-                    val_node = rating_node.find("value")
-                    if val_node is not None and val_node.text:
-                        rating = val_node.text.strip()
-            try: 
-                rating = f"{float(rating):.1f}"
-            except: 
-                rating = "0.0"
+                rating = rating_node.text or rating_node.findtext("value") or "0.0"
+            try: rating = f"{float(rating):.1f}"
+            except: rating = "0.0"
 
             if mode == "movie" and not category:
                 category = root.findtext("genre") or ""
@@ -438,13 +390,11 @@ class TMMMover(_PluginBase):
             for f in target_dir.rglob("*"):
                 if f.is_file():
                     total_bytes += f.stat().st_size
-                    if f.suffix.lower() in media_exts: 
-                        file_count += 1
+                    if f.suffix.lower() in media_exts: file_count += 1
             if file_count == 0:
                 for f in target_dir.rglob("*"):
                     if f.is_file() and f.suffix.lower() not in {".nfo", ".jpg", ".png", ".srt", ".ass"}:
                         file_count += 1
-                        
             total_size = f"{total_bytes / (1024 ** 3):.2f} GB" if total_bytes > 1024**3 else f"{total_bytes / (1024 ** 2):.2f} MB"
 
             image_path = ""
@@ -453,24 +403,19 @@ class TMMMover(_PluginBase):
                 for ext in [".jpg", ".png", ".jpeg"]:
                     test_path = target_dir / (fanart_name + ext)
                     if test_path.exists():
-                        image_path = str(test_path)
-                        break
+                        image_path = str(test_path); break
                 if not image_path:
                     for name in ["fanart.jpg", "fanart.png", "poster.jpg"]:
                         if (target_dir / name).exists():
-                            image_path = str(target_dir / name)
-                            break
+                            image_path = str(target_dir / name); break
             else:
                 for name in ["fanart.jpg", "fanart.png", "poster.jpg"]:
                     if (target_dir / name).exists():
-                        image_path = str(target_dir / name)
-                        break
+                        image_path = str(target_dir / name); break
 
             res_term = ""
-            if "4k" in target_dir.name.lower() or "2160p" in target_dir.name.lower(): 
-                res_term = "4K"
-            elif "1080p" in target_dir.name.lower(): 
-                res_term = "1080p"
+            if "4k" in target_dir.name.lower() or "2160p" in target_dir.name.lower(): res_term = "4K"
+            elif "1080p" in target_dir.name.lower(): res_term = "1080p"
 
             msg_title = f"《{title} ({year})》 已入库 ✅"
             msg_text = (
@@ -480,35 +425,23 @@ class TMMMover(_PluginBase):
                 f"📝简介：{plot}\n\n"
                 f"📄共 {file_count} 个文件 ｜ 💾大小：{total_size}"
             )
-
             self.post_message(title=msg_title, text=msg_text, image=image_path)
-
         except Exception as e:
-            logger.error(f"【TMM转移助手】发送独立入库通知异常 [{target_dir.name}]: {str(e)}")
+            logger.error(f"【TMM转移助手】通知发送异常 [{target_dir.name}]: {str(e)}")
 
     def _resolve_series_target_root(self, tvshow_nfo: Path) -> Path:
-        tree = ET.parse(tvshow_nfo)
-        root = tree.getroot()
+        tree = ET.parse(tvshow_nfo); root = tree.getroot()
         values = []
-        
         for tag in ("country", "genre"):
             for node in root.findall(f".//{tag}"):
-                if node.text: 
-                    values.extend([p.strip() for p in node.text.replace("|", "/").replace(",", "/").split("/") if p.strip()])
-        
+                if node.text: values.extend([p.strip() for p in node.text.replace("|", "/").replace(",", "/").split("/") if p.strip()])
         category_rules = [
-            ("anime", ["动漫", "动画", "anime", "animation"]), 
-            ("shortdrama", ["短剧", "微短剧"]),
-            ("documentary", ["纪录片", "documentary"]), 
-            ("variety", ["综艺", "真人秀"]),
-            ("hktw", ["香港", "台湾", "港台"]), 
-            ("jpkr", ["日本", "韩国", "日韩"]),
-            ("mainland", ["中国大陆", "中国", "大陆"]), 
-            ("western", ["美国", "英国", "欧美", "欧洲"]),
+            ("anime", ["动漫", "动画", "anime", "animation"]), ("shortdrama", ["短剧", "微短剧"]),
+            ("documentary", ["纪录片", "documentary"]), ("variety", ["综艺", "真人秀"]),
+            ("hktw", ["香港", "台湾", "港台"]), ("jpkr", ["日本", "韩国", "日韩"]),
+            ("mainland", ["中国大陆", "中国", "大陆"]), ("western", ["美国", "英国", "欧美", "欧洲"]),
         ]
-        
         for key, keywords in category_rules:
             if any(k.lower() in v.lower() for v in values for k in keywords):
                 return Path(self._default_series_path) / self.SERIES_CATEGORIES[key]
-                
         return Path(self._default_series_path) / self.SERIES_CATEGORIES["western"]
