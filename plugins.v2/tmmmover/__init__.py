@@ -22,7 +22,7 @@ class TMMMover(_PluginBase):
     plugin_desc = (
         "根据 TMM NFO 自动分拣迁移，并精准提取 TMDB 数据模拟原生图文入库通知"
     )
-    plugin_version = "2.0.4"
+    plugin_version = "2.0.5"
     plugin_author = "QB"
     author_url = "https://github.com/TimeStandStill/MoviePilot-Plugins"
     plugin_icon = "sync.png"
@@ -49,6 +49,9 @@ class TMMMover(_PluginBase):
         "sci-fi": "科幻", "tv movie": "电视电影", "thriller": "惊悚",
         "war": "战争", "western": "西部"
     }
+    WECOM_OVERVIEW_MAX_LEN = 42
+    WECOM_OVERVIEW_ELLIPSIS = "..."
+    WECOM_IMAGE_ASPECT_PRIORITY = ("fanart", "backdrop", "banner", "landscape", "thumb")
 
     def __init__(self):
         super().__init__()
@@ -117,6 +120,42 @@ class TMMMover(_PluginBase):
     def api_run_once(self) -> Dict[str, Any]:
         threading.Thread(target=self.run_once, daemon=True).start()
         return {"code": 0, "msg": "✅ 任务已在后台启动！"}
+
+    @classmethod
+    def _truncate_wecom_overview(cls, text: str) -> str:
+        overview = re.sub(r"\s+", " ", (text or "").strip())
+        if not overview:
+            return "暂无简介"
+        max_len = cls.WECOM_OVERVIEW_MAX_LEN
+        if len(overview) <= max_len:
+            return overview
+        cutoff = max(0, max_len - len(cls.WECOM_OVERVIEW_ELLIPSIS))
+        return overview[:cutoff].rstrip() + cls.WECOM_OVERVIEW_ELLIPSIS
+
+    @classmethod
+    def _extract_notification_images(cls, root: ET.Element) -> Tuple[str, str]:
+        message_image = ""
+        poster_image = ""
+        fallback_image = ""
+
+        for thumb in root.findall(".//thumb"):
+            text = (thumb.text or "").strip()
+            if not text.startswith("http"):
+                continue
+
+            aspect = (thumb.get("aspect") or "").strip().lower()
+            if aspect == "poster" and not poster_image:
+                poster_image = text
+                continue
+            if aspect in cls.WECOM_IMAGE_ASPECT_PRIORITY and not message_image:
+                message_image = text
+                continue
+            if not fallback_image:
+                fallback_image = text
+
+        if not message_image:
+            message_image = fallback_image
+        return message_image, poster_image
 
     def run_once(self) -> str:
         if not self.get_state(): return "未完全配置"
@@ -205,8 +244,7 @@ class TMMMover(_PluginBase):
 
             title = root.findtext("title") or target_dir.name
             year = root.findtext("year") or ""
-            plot = root.findtext("plot") or "暂无简介"
-            if len(plot) > 150: plot = plot[:150] + "..."
+            plot = self._truncate_wecom_overview(root.findtext("plot") or "暂无简介")
 
             rating = "0.0"
             ratings_node = root.find("ratings")
@@ -222,15 +260,9 @@ class TMMMover(_PluginBase):
                     if val is not None and val.text: rating = val.text.strip()
                     elif rating_node.text and rating_node.text.strip(): rating = rating_node.text.strip()
 
-            image_url = ""
-            for thumb in root.findall(".//thumb"):
-                if thumb.text and thumb.text.startswith("http"):
-                    if thumb.get("aspect") == "poster":
-                        image_url = thumb.text.strip(); break
-                    elif not image_url:
-                        image_url = thumb.text.strip()
+            image_url, poster_url = self._extract_notification_images(root)
 
-            if rating in ["0.0", "0", ""] or not image_url:
+            if rating in ["0.0", "0", ""] or not image_url or not poster_url:
                 tmdb_id = None
                 for uid in root.findall(".//uniqueid"):
                     if uid.get("type", "").lower() in ["tmdb", "themoviedb"]:
@@ -247,6 +279,8 @@ class TMMMover(_PluginBase):
                                 rating = str(tmdb_info.vote_average)
                             if not image_url:
                                 image_url = tmdb_info.get_message_image()
+                            if not poster_url and hasattr(tmdb_info, "get_poster_image"):
+                                poster_url = tmdb_info.get_poster_image()
                     except Exception as e:
                         logger.error(f"【TMM转移助手】通过 TMDBID 提取补齐数据失败: {e}")
 
@@ -341,7 +375,8 @@ class TMMMover(_PluginBase):
                 f"📄共 {file_count} 个文件 ｜ 💾大小：{total_size}"
             )
 
-            self.post_message(title=msg_title, text=msg_text, image=image_url if image_url else None)
+            notify_image = image_url or poster_url or None
+            self.post_message(title=msg_title, text=msg_text, image=notify_image)
 
         except Exception as e:
             logger.error(f"【TMM转移助手】发送入库通知异常 [{target_dir.name}]: {str(e)}")
