@@ -171,7 +171,7 @@ class TMMMover(_PluginBase):
                 {"component": "VTab", "props": {"value": "move"}, "text": "TMM 转移"},
             ]},
             {"component": "VWindow", "props": {"model": "active_tab", "class": "mt-4"}, "content": [
-                {"component": "VWindowItem", "props": {"value": "link"}, "content": [
+                {"component": "VWindowItem", "props": {"value": "link", "class": "pt-2"}, "content": [
                     {"component": "VRow", "content": [
                         {"component": "VCol", "props": {"cols": 12, "md": 4}, "content": [{"component": "VSwitch", "props": {"model": "link_enabled", "label": "启用实时硬链接", "color": "primary"}}]},
                         {"component": "VCol", "props": {"cols": 12, "md": 4}, "content": [{"component": "VSwitch", "props": {"model": "link_notify", "label": "硬链接发送通知", "color": "info"}}]},
@@ -197,7 +197,7 @@ class TMMMover(_PluginBase):
                         {"component": "VCol", "props": {"cols": 12}, "content": [{"component": "VAlert", "props": {"type": "info", "variant": "tonal", "text": "这一页完全对应 MP 官方实时硬链接思路：只做实时监控和手动全量补链，不做定时任务；同时会等待下载文件静默一段时间后再生成硬链接，尽量避开 QB 未完成文件。"}}]},
                     ]},
                 ]},
-                {"component": "VWindowItem", "props": {"value": "move"}, "content": [
+                {"component": "VWindowItem", "props": {"value": "move", "class": "pt-2"}, "content": [
                     {"component": "VRow", "content": [
                         {"component": "VCol", "props": {"cols": 12}, "content": [{"component": "VPathField", "props": {"model": "default_movie_path", "label": "目标电影存放目录", "placeholder": "/media/movies"}}]},
                         {"component": "VCol", "props": {"cols": 12}, "content": [{"component": "VPathField", "props": {"model": "default_series_path", "label": "目标剧集存放根目录", "placeholder": "/media/series", "persistent-hint": True}}]},
