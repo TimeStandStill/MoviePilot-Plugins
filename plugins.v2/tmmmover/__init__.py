@@ -41,9 +41,9 @@ class TMMMover(_PluginBase):
 
     plugin_name = "TMM 元数据转移助手"
     plugin_desc = (
-        "根据 TMM NFO 自动分拣迁移，并精准提取 TMDB 数据模拟原生图文入库通知"
+        "整合实时硬链接、TMM 刮削转移与原生风格入库通知的一体化媒体整理助手"
     )
-    plugin_version = "2.1.2"
+    plugin_version = "2.1.3"
     plugin_author = "QB"
     author_url = "https://github.com/TimeStandStill/MoviePilot-Plugins"
     plugin_icon = "sync.png"
@@ -74,6 +74,9 @@ class TMMMover(_PluginBase):
     WECOM_OVERVIEW_ELLIPSIS = "..."
     WECOM_PRIMARY_IMAGE_ASPECTS = ("fanart", "backdrop")
     WECOM_SECONDARY_IMAGE_ASPECTS = ("banner", "landscape")
+    LINK_LOG_TAG = "【实时监控】"
+    MANUAL_MOVE_LOG_TAG = "【手动转移】"
+    MOVE_LOG_TAG = "【定时转移】"
     MEDIA_EXTENSIONS = {".mp4", ".mkv", ".ts", ".avi", ".rmvb", ".wmv", ".iso", ".m2ts"}
     TEMP_DOWNLOAD_SUFFIXES = (".!qb", ".part", ".parts", ".tmp", ".qb!")
 
@@ -141,7 +144,7 @@ class TMMMover(_PluginBase):
             threading.Thread(target=self._run_link_sync_once, daemon=True).start()
 
         logger.info(
-            f"【TMM转移助手】配置加载: 启用={self._enabled}, 通知={self._notify_enabled}, "
+            f"{self.LINK_LOG_TAG} 配置加载: 启用={self._enabled}, 通知={self._notify_enabled}, "
             f"硬链接监控={self._link_enabled}, 监控目录数={len(self._dirconf)}"
         )
 
@@ -261,12 +264,12 @@ class TMMMover(_PluginBase):
                     observer.stop()
                     observer.join()
                 except Exception as e:
-                    logger.debug(f"【TMM转移助手】停止硬链接监控失败: {e}")
+                    logger.debug(f"{self.LINK_LOG_TAG} 停止硬链接监控失败: {e}")
         self._observer = []
         self._link_pending = set()
 
     def api_run_once(self) -> Dict[str, Any]:
-        threading.Thread(target=self.run_once, daemon=True).start()
+        threading.Thread(target=self.run_once, kwargs={"log_tag": self.MANUAL_MOVE_LOG_TAG}, daemon=True).start()
         return {"code": 0, "msg": "✅ 任务已在后台启动！"}
 
     def api_sync_links_once(self) -> Dict[str, Any]:
@@ -299,7 +302,7 @@ class TMMMover(_PluginBase):
         if not monitor_path and not target_path:
             return
         if not monitor_path or not target_path:
-            logger.warning(f"【TMM转移助手】{label}硬链接配置不完整，已跳过")
+            logger.warning(f"{self.LINK_LOG_TAG} {label}硬链接配置不完整，已跳过")
             return
         self._dirconf[monitor_path] = Path(target_path)
 
@@ -307,7 +310,7 @@ class TMMMover(_PluginBase):
         for mon_path, target_path in self._dirconf.items():
             try:
                 if target_path.is_relative_to(Path(mon_path)):
-                    logger.warning(f"【TMM转移助手】{target_path} 是监控目录 {mon_path} 的子目录，无法启用实时硬链接")
+                    logger.warning(f"{self.LINK_LOG_TAG} {target_path} 是监控目录 {mon_path} 的子目录，无法启用实时硬链接")
                     continue
             except Exception:
                 pass
@@ -318,19 +321,19 @@ class TMMMover(_PluginBase):
                 observer.daemon = True
                 observer.start()
                 self._observer.append(observer)
-                logger.info(f"【TMM转移助手】实时硬链接监控已启动: {mon_path} -> {target_path}")
+                logger.info(f"{self.LINK_LOG_TAG} 实时硬链接监控已启动: {mon_path} -> {target_path}")
             except Exception as e:
-                logger.error(f"【TMM转移助手】实时硬链接监控启动失败 [{mon_path}]: {e}")
+                logger.error(f"{self.LINK_LOG_TAG} 实时硬链接监控启动失败 [{mon_path}]: {e}")
 
     def sync_all_links(self):
         if not self._dirconf:
-            logger.warning("【TMM转移助手】未配置实时硬链接目录映射，跳过全量同步")
+            logger.warning(f"{self.LINK_LOG_TAG} 未配置实时硬链接目录映射，跳过全量同步")
             return
-        logger.info("【TMM转移助手】=== 开始执行硬链接全量同步 ===")
+        logger.info(f"{self.LINK_LOG_TAG} === 开始执行硬链接全量同步 ===")
         for mon_path in self._dirconf.keys():
             for file_path in SystemUtils.list_files(Path(mon_path), ['.*']):
                 self._link_file_when_ready(event_path=str(file_path), mon_path=mon_path, require_quiet=True)
-        logger.info("【TMM转移助手】=== 硬链接全量同步完成 ===")
+        logger.info(f"{self.LINK_LOG_TAG} === 硬链接全量同步完成 ===")
 
     def _link_event_handler(self, event, mon_path: str, event_path: str):
         if not event.is_directory:
@@ -358,11 +361,11 @@ class TMMMover(_PluginBase):
                 ready, reason = self._is_link_source_ready(file_path)
                 if ready:
                     break
-                logger.debug(f"【TMM转移助手】等待文件下载完成后再硬链接: {file_path.name} ({reason})")
+                logger.debug(f"{self.LINK_LOG_TAG} 等待文件下载完成后再硬链接: {file_path.name} ({reason})")
                 time.sleep(check_interval)
             self._link_file_when_ready(event_path=event_path, mon_path=mon_path, require_quiet=True)
         except Exception as e:
-            logger.error(f"【TMM转移助手】硬链接等待异常 [{event_path}]: {e}")
+            logger.error(f"{self.LINK_LOG_TAG} 硬链接等待异常 [{event_path}]: {e}")
         finally:
             with _LINK_LOCK:
                 self._link_pending.discard(str(Path(event_path)))
@@ -380,7 +383,7 @@ class TMMMover(_PluginBase):
                 if require_quiet:
                     ready, reason = self._is_link_source_ready(file_path)
                     if not ready:
-                        logger.info(f"【TMM转移助手】跳过未完成文件 {file_path.name}：{reason}")
+                        logger.info(f"{self.LINK_LOG_TAG} 跳过未完成文件 {file_path.name}：{reason}")
                         return
 
                 transfer_type = "link"
@@ -393,16 +396,16 @@ class TMMMover(_PluginBase):
 
                 state, errmsg = self._link_file(src_path=file_path, mon_path=mon_path, target_path=target, transfer_type=transfer_type)
                 if not state:
-                    logger.warning(f"【TMM转移助手】{file_path.name} 硬链接失败：{errmsg}")
+                    logger.warning(f"{self.LINK_LOG_TAG} {file_path.name} 硬链接失败：{errmsg}")
                     if self._link_notify:
                         self.post_message(title=f"{file_path.name} 硬链接失败", text=f"原因：{errmsg or '未知'}")
                     return
 
-                logger.info(f"【TMM转移助手】{file_path.name} {'复制' if transfer_type == 'copy' else '硬链接'}成功")
+                logger.info(f"{self.LINK_LOG_TAG} {file_path.name} {'复制' if transfer_type == 'copy' else '硬链接'}成功")
                 if self._link_notify:
                     self.post_message(title=f"{file_path.name} 硬链接完成", text=f"目标目录：{target}")
         except Exception as e:
-            logger.error(f"【TMM转移助手】硬链接处理异常 [{event_path}]: {e}")
+            logger.error(f"{self.LINK_LOG_TAG} 硬链接处理异常 [{event_path}]: {e}")
 
     @classmethod
     def _is_ignored_link_path(cls, event_path: str) -> bool:
@@ -414,7 +417,7 @@ class TMMMover(_PluginBase):
         for keyword in self._link_exclude_keywords.splitlines():
             keyword = keyword.strip()
             if keyword and re.findall(keyword, event_path):
-                logger.info(f"【TMM转移助手】{event_path} 命中硬链接排除关键词 {keyword}，已跳过")
+                logger.info(f"{self.LINK_LOG_TAG} {event_path} 命中硬链接排除关键词 {keyword}，已跳过")
                 return True
         return False
 
@@ -496,20 +499,21 @@ class TMMMover(_PluginBase):
             message_image = secondary_image
         return message_image, poster_image
 
-    def run_once(self) -> str:
+    def run_once(self, log_tag: Optional[str] = None) -> str:
+        log_tag = log_tag or self.MOVE_LOG_TAG
         if not self.get_state(): return "未完全配置"
-        logger.info(f"【TMM转移助手】=== 开始执行后台扫描任务 ===")
-        movie_res = self._scan_source_dir(self._source_movie_path, "movie")
-        series_res = self._scan_source_dir(self._source_series_path, "series")
+        logger.info(f"{log_tag} === 开始执行后台扫描任务 ===")
+        movie_res = self._scan_source_dir(self._source_movie_path, "movie", log_tag=log_tag)
+        series_res = self._scan_source_dir(self._source_series_path, "series", log_tag=log_tag)
 
         final_moved = len(movie_res["moved"]) + len(series_res["moved"])
         final_skipped = len(movie_res["skipped"]) + len(series_res["skipped"])
         final_errors = len(movie_res["errors"]) + len(series_res["errors"])
 
-        logger.info(f"【TMM转移助手】=== 任务完成 === | 成功: {final_moved} | 跳过: {final_skipped} | 失败: {final_errors}")
+        logger.info(f"{log_tag} === 任务完成 === | 成功: {final_moved} | 跳过: {final_skipped} | 失败: {final_errors}")
         return "任务完成"
 
-    def _scan_source_dir(self, source_path: str, mode: str) -> Dict[str, List[str]]:
+    def _scan_source_dir(self, source_path: str, mode: str, log_tag: str) -> Dict[str, List[str]]:
         res = {"moved": [], "skipped": [], "errors": []}
         if not source_path: return res
         source_dir = Path(source_path)
@@ -522,25 +526,25 @@ class TMMMover(_PluginBase):
                 except: pass
                 continue
             try:
-                status = self._process_one_folder(child, mode)
+                status = self._process_one_folder(child, mode, log_tag=log_tag)
                 if status == "MOVED": res["moved"].append(child.name)
                 elif status == "SKIPPED": res["skipped"].append(child.name)
                 elif status == "ERROR": res["errors"].append(child.name)
             except Exception as e:
                 res["errors"].append(child.name)
-                logger.error(f"【TMM转移助手】处理失败 [{child.name}]: {str(e)}")
+                logger.error(f"{log_tag} 处理失败 [{child.name}]: {str(e)}")
         return res
 
     def _has_year_in_name(self, folder_name: str) -> bool:
         return bool(re.search(r"[\(（]\d{4}[\)）]", folder_name))
 
-    def _process_one_folder(self, folder: Path, mode: str) -> str:
+    def _process_one_folder(self, folder: Path, mode: str, log_tag: str) -> str:
         if not self._has_year_in_name(folder.name): return "SKIPPED"
         nfo_files = list(folder.glob("*.nfo"))
         if not nfo_files: return "SKIPPED"
         folder_ready, folder_reason = self._is_folder_ready_for_move(folder)
         if not folder_ready:
-            logger.info(f"【TMM转移助手】跳过未完成入库目录 [{folder.name}]：{folder_reason}")
+            logger.info(f"{log_tag} 跳过未完成入库目录 [{folder.name}]：{folder_reason}")
             return "SKIPPED"
 
         if mode == "movie":
@@ -561,12 +565,12 @@ class TMMMover(_PluginBase):
         target_dir.parent.mkdir(parents=True, exist_ok=True)
         try:
             shutil.move(str(folder), str(target_dir))
-            logger.info(f"【TMM转移助手】✔ 成功入库: {target_dir.name}")
+            logger.info(f"{log_tag} ✔ 成功入库: {target_dir.name}")
             if self._notify_enabled:
-                self._send_item_notification(target_dir, mode, category_name)
+                self._send_item_notification(target_dir, mode, category_name, log_tag=log_tag)
             return "MOVED"
         except Exception as e:
-            logger.error(f"【TMM转移助手】❌ 移动失败 [{folder.name}]: {str(e)}")
+            logger.error(f"{log_tag} ❌ 移动失败 [{folder.name}]: {str(e)}")
             return "ERROR"
 
     def _is_folder_ready_for_move(self, folder: Path) -> Tuple[bool, str]:
@@ -586,7 +590,7 @@ class TMMMover(_PluginBase):
                 return False, f"媒体文件最近 {max(1, int(quiet_age // 60))} 分钟内仍有写入"
         return True, "目录已稳定"
 
-    def _send_item_notification(self, target_dir: Path, mode: str, category: str):
+    def _send_item_notification(self, target_dir: Path, mode: str, category: str, log_tag: str):
         try:
             nfo_file = None
             if mode == "series":
@@ -642,7 +646,7 @@ class TMMMover(_PluginBase):
                             if not poster_url and hasattr(tmdb_info, "get_poster_image"):
                                 poster_url = tmdb_info.get_poster_image()
                     except Exception as e:
-                        logger.error(f"【TMM转移助手】通过 TMDBID 提取补齐数据失败: {e}")
+                        logger.error(f"{log_tag} 通过 TMDBID 提取补齐数据失败: {e}")
 
             try: rating = f"{float(rating):.1f}"
             except: rating = "0.0"
@@ -737,7 +741,7 @@ class TMMMover(_PluginBase):
             self.post_message(title=msg_title, text=msg_text, image=notify_image)
 
         except Exception as e:
-            logger.error(f"【TMM转移助手】发送入库通知异常 [{target_dir.name}]: {str(e)}")
+            logger.error(f"{log_tag} 发送入库通知异常 [{target_dir.name}]: {str(e)}")
 
     def _resolve_series_target_root(self, tvshow_nfo: Path) -> Path:
         values = []
@@ -765,8 +769,8 @@ class TMMMover(_PluginBase):
         dst_dir.parent.mkdir(parents=True, exist_ok=True)
         try:
             shutil.move(str(src_dir), str(dst_dir))
-            logger.info(f"【TMM转移助手】✔ 成功移动: {dst_dir.name}")
+            logger.info(f"{self.MOVE_LOG_TAG} ✔ 成功移动: {dst_dir.name}")
             return "MOVED"
         except Exception as e:
-            logger.error(f"【TMM转移助手】❌ 移动失败 [{src_dir.name}]: {str(e)}")
+            logger.error(f"{self.MOVE_LOG_TAG} ❌ 移动失败 [{src_dir.name}]: {str(e)}")
             return "ERROR"
