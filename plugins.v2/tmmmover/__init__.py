@@ -22,7 +22,7 @@ class TMMMover(_PluginBase):
     plugin_desc = (
         "根据 TMM NFO 自动分拣迁移，并精准提取 TMDB 数据模拟原生图文入库通知"
     )
-    plugin_version = "2.0.5"
+    plugin_version = "2.0.6"
     plugin_author = "QB"
     author_url = "https://github.com/TimeStandStill/MoviePilot-Plugins"
     plugin_icon = "sync.png"
@@ -51,7 +51,8 @@ class TMMMover(_PluginBase):
     }
     WECOM_OVERVIEW_MAX_LEN = 42
     WECOM_OVERVIEW_ELLIPSIS = "..."
-    WECOM_IMAGE_ASPECT_PRIORITY = ("fanart", "backdrop", "banner", "landscape", "thumb")
+    WECOM_PRIMARY_IMAGE_ASPECTS = ("fanart", "backdrop")
+    WECOM_SECONDARY_IMAGE_ASPECTS = ("banner", "landscape")
 
     def __init__(self):
         super().__init__()
@@ -136,7 +137,7 @@ class TMMMover(_PluginBase):
     def _extract_notification_images(cls, root: ET.Element) -> Tuple[str, str]:
         message_image = ""
         poster_image = ""
-        fallback_image = ""
+        secondary_image = ""
 
         for thumb in root.findall(".//thumb"):
             text = (thumb.text or "").strip()
@@ -147,14 +148,14 @@ class TMMMover(_PluginBase):
             if aspect == "poster" and not poster_image:
                 poster_image = text
                 continue
-            if aspect in cls.WECOM_IMAGE_ASPECT_PRIORITY and not message_image:
+            if aspect in cls.WECOM_PRIMARY_IMAGE_ASPECTS and not message_image:
                 message_image = text
                 continue
-            if not fallback_image:
-                fallback_image = text
+            if aspect in cls.WECOM_SECONDARY_IMAGE_ASPECTS and not secondary_image:
+                secondary_image = text
 
         if not message_image:
-            message_image = fallback_image
+            message_image = secondary_image
         return message_image, poster_image
 
     def run_once(self) -> str:
