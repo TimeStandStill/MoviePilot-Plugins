@@ -43,7 +43,7 @@ class TMMMover(_PluginBase):
     plugin_desc = (
         "整合实时硬链接、TMM 刮削转移与原生风格入库通知的一体化媒体整理助手"
     )
-    plugin_version = "2.1.3"
+    plugin_version = "2.1.4"
     plugin_author = "QB"
     author_url = "https://github.com/TimeStandStill/MoviePilot-Plugins"
     plugin_icon = "sync.png"
@@ -480,6 +480,12 @@ class TMMMover(_PluginBase):
         poster_image = ""
         secondary_image = ""
 
+        for thumb in root.findall(".//fanart/thumb"):
+            text = (thumb.text or "").strip()
+            if text.startswith("http"):
+                message_image = text
+                break
+
         for thumb in root.findall(".//thumb"):
             text = (thumb.text or "").strip()
             if not text.startswith("http"):
@@ -755,7 +761,8 @@ class TMMMover(_PluginBase):
         normalized_values = [v.lower() for v in values]
         category_rules = [
             ("anime", ["动漫", "动画", "anime", "animation"]), ("shortdrama", ["短剧", "微短剧"]),
-            ("documentary", ["纪录片", "documentary"]), ("variety", ["综艺", "真人秀"]),
+            ("documentary", ["纪录片", "documentary"]),
+            ("variety", ["综艺", "真人秀", "reality", "reality tv", "variety show"]),
             ("hktw", ["香港", "台湾", "港台"]), ("jpkr", ["日本", "韩国", "日韩"]),
             ("mainland", ["中国大陆", "中国", "大陆"]), ("western", ["美国", "英国", "欧美", "欧洲"]),
         ]
