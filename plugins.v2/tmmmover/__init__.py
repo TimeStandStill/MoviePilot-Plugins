@@ -762,7 +762,7 @@ class TMMMover(_PluginBase):
         category_rules = [
             ("anime", ["动漫", "动画", "anime", "animation"]), ("shortdrama", ["短剧", "微短剧"]),
             ("documentary", ["纪录片", "documentary"]),
-            ("variety", ["综艺", "真人秀", "reality", "reality tv", "variety show"]),
+            ("variety", ["综艺", "真人秀", "脱口秀", "reality", "reality tv", "variety show", "talk show", "talkshow", "stand-up", "stand up"]),
             ("hktw", ["香港", "台湾", "港台"]), ("jpkr", ["日本", "韩国", "日韩"]),
             ("mainland", ["中国大陆", "中国", "大陆"]), ("western", ["美国", "英国", "欧美", "欧洲"]),
         ]

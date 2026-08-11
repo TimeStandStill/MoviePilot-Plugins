@@ -77,6 +77,29 @@ def load_tmmmover_class():
 
 
 class TMMMoverSeriesCategoryTest(unittest.TestCase):
+    def test_talk_show_is_classified_as_variety_before_mainland(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            nfo = tmp_path / "tvshow.nfo"
+            nfo.write_text(
+                """<?xml version="1.0" encoding="utf-8"?>
+<tvshow>
+  <title>脱口秀和Ta的朋友们</title>
+  <country>中国</country>
+  <genre>Talk Show</genre>
+</tvshow>
+""",
+                encoding="utf-8",
+            )
+
+            mover = load_tmmmover_class()
+            mover._default_series_path = str(tmp_path / "Series")
+
+            self.assertEqual(
+                mover._resolve_series_target_root(mover, nfo),
+                tmp_path / "Series" / "综艺",
+            )
+
     def test_reality_tv_korean_show_is_classified_as_variety(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
