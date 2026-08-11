@@ -43,7 +43,7 @@ class TMMMover(_PluginBase):
     plugin_desc = (
         "整合实时硬链接、TMM 刮削转移与原生风格入库通知的一体化媒体整理助手"
     )
-    plugin_version = "2.1.4"
+    plugin_version = "2.1.5"
     plugin_author = "QB"
     author_url = "https://github.com/TimeStandStill/MoviePilot-Plugins"
     plugin_icon = "sync.png"
