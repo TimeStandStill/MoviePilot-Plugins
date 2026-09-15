@@ -81,8 +81,14 @@ class TMMMoverSeriesCategoryTest(unittest.TestCase):
         mover = load_tmmmover_class()
 
         self.assertEqual(
-            mover._truncate_notification_overview("  第一行\n第二行\x00\x0b  "),
+            mover._sanitize_notification_overview("  第一行\n第二行\x00\x0b  "),
             "第一行 第二行",
+        )
+
+        long_plot = "简介内容 " * 100
+        self.assertEqual(
+            mover._sanitize_notification_overview(long_plot),
+            ("简介内容 " * 100).strip(),
         )
 
     def test_talk_show_is_classified_as_variety_before_mainland(self):

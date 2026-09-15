@@ -43,7 +43,7 @@ class TMMMover(_PluginBase):
     plugin_desc = (
         "整合实时硬链接、TMM 刮削转移与原生风格入库通知的一体化媒体整理助手"
     )
-    plugin_version = "2.1.6"
+    plugin_version = "2.1.7"
     plugin_author = "QB"
     author_url = "https://github.com/TimeStandStill/MoviePilot-Plugins"
     plugin_icon = "sync.png"
@@ -70,8 +70,6 @@ class TMMMover(_PluginBase):
         "sci-fi": "科幻", "tv movie": "电视电影", "thriller": "惊悚",
         "war": "战争", "western": "西部"
     }
-    NOTIFICATION_OVERVIEW_MAX_LEN = 42
-    NOTIFICATION_OVERVIEW_ELLIPSIS = "..."
     NOTIFICATION_PRIMARY_IMAGE_ASPECTS = ("fanart", "backdrop")
     NOTIFICATION_SECONDARY_IMAGE_ASPECTS = ("banner", "landscape")
     LINK_LOG_TAG = "【实时监控】"
@@ -464,18 +462,14 @@ class TMMMover(_PluginBase):
         return (code == 0), errmsg
 
     @classmethod
-    def _truncate_notification_overview(cls, text: str) -> str:
-        """生成可安全交给 MoviePilot 各通知渠道渲染的简短简介。"""
+    def _sanitize_notification_overview(cls, text: str) -> str:
+        """清理简介中的空白和 XML 非法控制字符，不限制正文长度。"""
         overview = re.sub(r"\s+", " ", (text or "").strip())
         # 飞书卡片及部分通知渠道会拒绝 XML 1.0 不允许的控制字符。
         overview = re.sub(r"[\x00-\x08\x0B\x0C\x0E-\x1F]", "", overview)
         if not overview:
             return "暂无简介"
-        max_len = cls.NOTIFICATION_OVERVIEW_MAX_LEN
-        if len(overview) <= max_len:
-            return overview
-        cutoff = max(0, max_len - len(cls.NOTIFICATION_OVERVIEW_ELLIPSIS))
-        return overview[:cutoff].rstrip() + cls.NOTIFICATION_OVERVIEW_ELLIPSIS
+        return overview
 
     @classmethod
     def _extract_notification_images(cls, root: ET.Element) -> Tuple[str, str]:
@@ -617,7 +611,7 @@ class TMMMover(_PluginBase):
 
             title = root.findtext("title") or target_dir.name
             year = root.findtext("year") or ""
-            plot = self._truncate_notification_overview(root.findtext("plot") or "暂无简介")
+            plot = self._sanitize_notification_overview(root.findtext("plot") or "暂无简介")
 
             rating = "0.0"
             ratings_node = root.find("ratings")
