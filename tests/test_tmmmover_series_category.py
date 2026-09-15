@@ -77,6 +77,14 @@ def load_tmmmover_class():
 
 
 class TMMMoverSeriesCategoryTest(unittest.TestCase):
+    def test_notification_overview_is_channel_safe(self):
+        mover = load_tmmmover_class()
+
+        self.assertEqual(
+            mover._truncate_notification_overview("  第一行\n第二行\x00\x0b  "),
+            "第一行 第二行",
+        )
+
     def test_talk_show_is_classified_as_variety_before_mainland(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
