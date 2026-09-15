@@ -20,7 +20,7 @@ class DailyMediaReport(_PluginBase):
 
     plugin_name = "今日影视更新播报"
     plugin_desc = "汇总订阅剧集今日更新和电影今日入库，并通过 MoviePilot 通知渠道发送一条图文播报。"
-    plugin_version = "2.0.0"
+    plugin_version = "2.0.1"
     plugin_author = "QB"
     author_url = "https://github.com/TimeStandStill/MoviePilot-Plugins"
     plugin_icon = "Emby_A.png"
@@ -35,6 +35,10 @@ class DailyMediaReport(_PluginBase):
     DEFAULT_HEADER_IMAGE = (
         "https://raw.githubusercontent.com/TimeStandStill/MoviePilot-Plugins/"
         "main/plugins.v3/dailymediareport/assets/daily-media-header.png"
+    )
+    LEGACY_DEFAULT_HEADER_IMAGE = (
+        "https://raw.githubusercontent.com/TimeStandStill/MoviePilot-Plugins/"
+        "main/plugins.v2/dailymediareport/assets/daily-media-header.png"
     )
     GENRE_MAPPING = {
         "action": "动作", "adventure": "冒险", "animation": "动画", "anime": "动画",
@@ -66,7 +70,13 @@ class DailyMediaReport(_PluginBase):
         self._emby_api_key = (config.get("emby_api_key") or "").strip()
         self._notify_time = self._normalize_time(config.get("notify_time") or "21:00")
         self._cron = self._time_to_cron(self._notify_time)
-        self._header_image_url = (config.get("header_image_url") or self.DEFAULT_HEADER_IMAGE).strip()
+        configured_header_image = (config.get("header_image_url") or "").strip()
+        migrated_legacy_header = configured_header_image == self.LEGACY_DEFAULT_HEADER_IMAGE
+        self._header_image_url = (
+            self.DEFAULT_HEADER_IMAGE
+            if migrated_legacy_header
+            else configured_header_image or self.DEFAULT_HEADER_IMAGE
+        )
         self._verify_ssl = bool(config.get("verify_ssl", False))
         self._once_per_day = bool(config.get("once_per_day", True))
         self._run_once = bool(config.get("run_once", False))
@@ -75,6 +85,10 @@ class DailyMediaReport(_PluginBase):
             f"{self.LOG_TAG} 配置加载：启用={self._enabled}，通知类别=今日影视更新播报，"
             f"通知时间={self._notify_time}，每日去重={self._once_per_day}，证书校验={self._verify_ssl}"
         )
+
+        if migrated_legacy_header:
+            logger.info(f"{self.LOG_TAG} 已将 V2 默认头图地址迁移为 V3 地址")
+            self._save_config()
 
         if self._run_once and self._enabled:
             threading.Thread(target=self.run_report, kwargs={"force": True, "source": "保存后手动"}, daemon=True).start()
