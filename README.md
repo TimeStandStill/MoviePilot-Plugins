@@ -1,6 +1,35 @@
 # MoviePilot-Plugins
 
-本仓库为 [MoviePilot](https://github.com/jxxghp/MoviePilot) 第三方插件库，当前提供 **TMM 元数据转移助手** 插件。
+本仓库为 [MoviePilot](https://github.com/jxxghp/MoviePilot) 第三方插件库，当前提供 **今日影视更新播报** 与 **TMM 元数据转移助手** 插件。
+
+---
+
+## 今日影视更新播报 (DailyMediaReport)
+
+按日读取 Emby 的「订阅剧集」和「电影」媒体库，聚合当天新入库剧集和电影，通过 MoviePilot 已配置的通知渠道发送一条原生图文通知。
+
+- **作者**：QB
+- **版本**：1.0.0
+- **适用**：MoviePilot 插件市场（V2）
+
+### 功能概览
+
+| 能力 | 说明 |
+| --- | --- |
+| **剧集更新** | 根据当天新创建的 Emby Episode 合并剧名、季数与具体集数。 |
+| **电影入库** | 根据 Movie 的 `DateCreated` 汇总当天新入库电影。 |
+| **统一通知** | 复用 MoviePilot `post_message`，通过已配置的飞书机器人等通知渠道发送一条图文消息。 |
+| **防重复** | 默认一天仅自动播报一次；详情页手动执行可随时重发。 |
+| **头图** | 支持默认头图与可配置的公开 HTTPS 头图 URL；通知不含简介和入库时间。 |
+
+### 怎么使用
+
+1. 安装并启用“今日影视更新播报”。
+2. 配置 Emby 地址、API Key，以及每天的通知时间（默认 `21:00`）。
+3. 在 MoviePilot 中配置好目标飞书群对应的通知渠道；插件会直接复用该渠道，无需额外配置飞书密钥。
+4. 在插件详情页点击“立即发送今日播报”完成首次测试。
+
+插件专属配置与注意事项见 [plugins.v2/dailymediareport/README.md](plugins.v2/dailymediareport/README.md)。
 
 ---
 
