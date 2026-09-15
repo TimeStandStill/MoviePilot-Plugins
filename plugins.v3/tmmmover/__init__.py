@@ -11,11 +11,11 @@ from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 from watchdog.observers.polling import PollingObserver
 
-from app.log import logger
+from app.sdk.logging import logger
 from app.plugins import _PluginBase
-from app.chain.tmdb import TmdbChain
-from app.schemas.types import MediaType
-from app.utils.system import SystemUtils
+from app.chain.media import MediaChain
+from app.schemas.types import MediaSource, MediaType
+from app.sdk.utilities import SystemUtils
 
 
 _LINK_LOCK = threading.Lock()
@@ -43,7 +43,7 @@ class TMMMover(_PluginBase):
     plugin_desc = (
         "整合实时硬链接、TMM 刮削转移与原生风格入库通知的一体化媒体整理助手"
     )
-    plugin_version = "2.1.7"
+    plugin_version = "3.0.0"
     plugin_author = "QB"
     author_url = "https://github.com/TimeStandStill/MoviePilot-Plugins"
     plugin_icon = "sync.png"
@@ -640,7 +640,11 @@ class TMMMover(_PluginBase):
                 if tmdb_id and str(tmdb_id).isdigit():
                     try:
                         mtype = MediaType.MOVIE if mode == "movie" else MediaType.TV
-                        tmdb_info = TmdbChain().tmdb_info(tmdbid=int(tmdb_id), mtype=mtype)
+                        tmdb_info = MediaChain().recognize_media(
+                            media_source=MediaSource.TMDB,
+                            media_id=str(tmdb_id),
+                            mtype=mtype,
+                        )
                         if tmdb_info:
                             if rating in ["0.0", "0", ""] and tmdb_info.vote_average:
                                 rating = str(tmdb_info.vote_average)

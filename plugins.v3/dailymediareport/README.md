@@ -1,4 +1,4 @@
-# 今日影视更新播报（DailyMediaReport）
+# 今日影视更新播报（DailyMediaReport，MoviePilot V3）
 
 每天汇总 Emby 中的「订阅剧集」当天新集与「电影」当天新入库内容，并经 MoviePilot 已配置的通知渠道发送一条图文播报。
 

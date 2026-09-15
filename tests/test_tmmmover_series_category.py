@@ -10,14 +10,17 @@ from pathlib import Path
 def load_tmmmover_class():
     sys.modules.setdefault("app", types.ModuleType("app"))
 
-    app_log = types.ModuleType("app.log")
-    app_log.logger = types.SimpleNamespace(
+    app_sdk = types.ModuleType("app.sdk")
+    sys.modules["app.sdk"] = app_sdk
+
+    app_sdk_logging = types.ModuleType("app.sdk.logging")
+    app_sdk_logging.logger = types.SimpleNamespace(
         info=lambda *args, **kwargs: None,
         warning=lambda *args, **kwargs: None,
         error=lambda *args, **kwargs: None,
         debug=lambda *args, **kwargs: None,
     )
-    sys.modules["app.log"] = app_log
+    sys.modules["app.sdk.logging"] = app_sdk_logging
 
     app_plugins = types.ModuleType("app.plugins")
     app_plugins._PluginBase = object
@@ -26,23 +29,21 @@ def load_tmmmover_class():
     app_chain = types.ModuleType("app.chain")
     sys.modules["app.chain"] = app_chain
 
-    app_chain_tmdb = types.ModuleType("app.chain.tmdb")
-    app_chain_tmdb.TmdbChain = object
-    sys.modules["app.chain.tmdb"] = app_chain_tmdb
+    app_chain_media = types.ModuleType("app.chain.media")
+    app_chain_media.MediaChain = object
+    sys.modules["app.chain.media"] = app_chain_media
 
     app_schemas = types.ModuleType("app.schemas")
     sys.modules["app.schemas"] = app_schemas
 
     app_schemas_types = types.ModuleType("app.schemas.types")
+    app_schemas_types.MediaSource = types.SimpleNamespace(TMDB="themoviedb")
     app_schemas_types.MediaType = types.SimpleNamespace(MOVIE="movie", TV="tv")
     sys.modules["app.schemas.types"] = app_schemas_types
 
-    app_utils = types.ModuleType("app.utils")
-    sys.modules["app.utils"] = app_utils
-
-    app_utils_system = types.ModuleType("app.utils.system")
-    app_utils_system.SystemUtils = object
-    sys.modules["app.utils.system"] = app_utils_system
+    app_sdk_utilities = types.ModuleType("app.sdk.utilities")
+    app_sdk_utilities.SystemUtils = object
+    sys.modules["app.sdk.utilities"] = app_sdk_utilities
 
     apscheduler = types.ModuleType("apscheduler")
     sys.modules["apscheduler"] = apscheduler
@@ -69,7 +70,7 @@ def load_tmmmover_class():
     watchdog_observers_polling.PollingObserver = object
     sys.modules["watchdog.observers.polling"] = watchdog_observers_polling
 
-    module_path = Path(__file__).resolve().parents[1] / "plugins.v2" / "tmmmover" / "__init__.py"
+    module_path = Path(__file__).resolve().parents[1] / "plugins.v3" / "tmmmover" / "__init__.py"
     spec = importlib.util.spec_from_file_location("tmmmover_under_test", module_path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)

@@ -1,2 +1,0 @@
-# TMMMover 插件额外依赖
-watchdog~=6.0.0

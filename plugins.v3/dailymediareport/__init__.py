@@ -1,4 +1,4 @@
-"""Daily Emby update report plugin for MoviePilot V2."""
+"""Daily Emby update report plugin for MoviePilot V3."""
 
 import json
 import ssl
@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from apscheduler.triggers.cron import CronTrigger
 
-from app.log import logger
+from app.sdk.logging import logger
 from app.plugins import _PluginBase
 
 
@@ -20,7 +20,7 @@ class DailyMediaReport(_PluginBase):
 
     plugin_name = "今日影视更新播报"
     plugin_desc = "汇总订阅剧集今日更新和电影今日入库，并通过 MoviePilot 通知渠道发送一条图文播报。"
-    plugin_version = "1.0.0"
+    plugin_version = "2.0.0"
     plugin_author = "QB"
     author_url = "https://github.com/TimeStandStill/MoviePilot-Plugins"
     plugin_icon = "Emby_A.png"
@@ -34,7 +34,7 @@ class DailyMediaReport(_PluginBase):
     }
     DEFAULT_HEADER_IMAGE = (
         "https://raw.githubusercontent.com/TimeStandStill/MoviePilot-Plugins/"
-        "main/plugins.v2/dailymediareport/assets/daily-media-header.png"
+        "main/plugins.v3/dailymediareport/assets/daily-media-header.png"
     )
     GENRE_MAPPING = {
         "action": "动作", "adventure": "冒险", "animation": "动画", "anime": "动画",
