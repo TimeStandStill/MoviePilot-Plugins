@@ -54,17 +54,18 @@
             "v1.0.4": "首个版本，支持按电影/剧集来源目录识别并自动迁移。"
         }
     },
-    "P115StrmHelper": {
-        "name": "115网盘STRM助手",
+    "QBP115StrmHelper": {
+        "name": "115网盘STRM助手（QB私用）",
         "description": "115网盘STRM生成一条龙服务",
         "labels": "云盘",
-        "version": "3.0.0",
+        "version": "3.0.1",
         "icon": "https://raw.githubusercontent.com/jxxghp/MoviePilot-Frontend/refs/heads/v2/src/assets/images/misc/u115.png",
         "author": "DDSRem",
         "release": true,
         "system_version": ">=3.0.0",
         "level": 1,
         "history": {
+            "v3.0.1": "QB 私用版：独立插件 ID、目录、配置、API、前端与远程命令，避免与原版重名。",
             "v3.0.0": "基于 DDSRem 2.8.74 迁移至 MoviePilot V3，适配 SDK、依赖声明和统一媒体身份。"
         }
     }

@@ -31,30 +31,37 @@ def validate(host: Path) -> bool:
     import app.plugins
 
     app.plugins.__path__.insert(0, str(repository / "plugins.v3"))
-    plugin = importlib.import_module("app.plugins.p115strmhelper")
+    plugin = importlib.import_module("app.plugins.qbp115strmhelper")
     from app.db.models.transferhistory import TransferHistory
     from app.db.session import SessionFactory
     from app.schemas.types import MediaSource, MediaType
     from app.sdk.config import settings
     from app.chain.transfer import TransferChain
-    from app.plugins.p115strmhelper.core.config import configer
-    from app.plugins.p115strmhelper.db_manager.moviepilot_transfer import TransferHBOper
-    from app.plugins.p115strmhelper.helper.mediasyncdel import MediaSyncDelHelper
-    from app.plugins.p115strmhelper.helper.strm.transfer import TransferStrmHelper
-    from app.plugins.p115strmhelper.patch.transfer_chain import TransferChainPatcher
-    from app.plugins.p115strmhelper.service.one_shot import schedule_plugin_one_shot
+    from app.plugins.qbp115strmhelper.core.config import configer
+    from app.plugins.qbp115strmhelper.db_manager.moviepilot_transfer import TransferHBOper
+    from app.plugins.qbp115strmhelper.helper.mediasyncdel import MediaSyncDelHelper
+    from app.plugins.qbp115strmhelper.helper.strm.transfer import TransferStrmHelper
+    from app.plugins.qbp115strmhelper.patch.transfer_chain import TransferChainPatcher
+    from app.plugins.qbp115strmhelper.service.one_shot import schedule_plugin_one_shot
 
     class V3IntegrationTests(unittest.TestCase):
         """验证真实 V3 类型、数据库、生命周期和调度接口"""
 
         def test_plugin_lifecycle_and_routes(self):
             """验证插件构造、数据库迁移、禁用状态初始化和路由声明"""
-            instance = plugin.P115StrmHelper()
-            self.assertEqual(instance.plugin_version, "3.0.0")
+            instance = plugin.QBP115StrmHelper()
+            self.assertEqual(instance.plugin_version, "3.0.1")
+            self.assertEqual(instance.plugin_name, "115网盘STRM助手（QB私用）")
+            self.assertEqual(instance.plugin_config_prefix, "qbp115strmhelper_")
+            self.assertEqual(configer.PLUSIN_NAME, "QBP115StrmHelper")
+            for command in instance.get_command():
+                self.assertTrue(command["cmd"].startswith("/qb_"))
+                self.assertTrue(command["data"]["action"].startswith("qb_"))
             instance.init_plugin({"enabled": False, "error_info_upload": False})
             self.assertGreater(len(instance.get_api()), 50)
             self.assertFalse(instance.get_state())
             self.assertTrue(Path(configer.PLUGIN_DB_PATH).is_file())
+            self.assertEqual(Path(configer.PLUGIN_DB_PATH).parent.name, "qbp115strmhelper")
             self.assertTrue(plugin.Api.get_config_api()["native_transfer"])
             instance.stop_service()
 
@@ -104,19 +111,19 @@ def validate(host: Path) -> bool:
         def test_scheduler_sdk(self):
             """验证一次性任务只使用宿主公开调度接口"""
             with patch(
-                "app.plugins.p115strmhelper.service.one_shot.add_plugin_once_job",
+                "app.plugins.qbp115strmhelper.service.one_shot.add_plugin_once_job",
                 return_value=True,
             ) as register:
                 callback = lambda: None
                 self.assertTrue(schedule_plugin_one_shot("example", "测试", callback))
                 register.assert_called_once_with(
-                    plugin_id="P115StrmHelper",
-                    job_id="P115StrmHelper_example", func=callback, name="测试",
+                    plugin_id="QBP115StrmHelper",
+                    job_id="QBP115StrmHelper_example", func=callback, name="测试",
                     delay_seconds=3, func_kwargs={},
                 )
 
     suite = unittest.defaultTestLoader.loadTestsFromTestCase(V3IntegrationTests)
-    source = repository / "plugins.v3/p115strmhelper"
+    source = repository / "plugins.v3/qbp115strmhelper"
     sys.path.append(str(source))
     for name in ("path_utils", "time_utils", "url_utils", "cron_utils", "exception_utils"):
         test_spec = importlib.util.spec_from_file_location(

@@ -169,7 +169,7 @@ cython_debug/
 node_modules/
 
 # Upstream plugin bundles ship runtime wheels as source assets
-!plugins.v2/p115strmhelper/wheels/
-!plugins.v2/p115strmhelper/wheels/*.whl
-!plugins.v3/p115strmhelper/wheels/
-!plugins.v3/p115strmhelper/wheels/*.whl
+!plugins.v2/qbp115strmhelper/wheels/
+!plugins.v2/qbp115strmhelper/wheels/*.whl
+!plugins.v3/qbp115strmhelper/wheels/
+!plugins.v3/qbp115strmhelper/wheels/*.whl
