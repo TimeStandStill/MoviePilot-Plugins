@@ -164,3 +164,12 @@ cython_debug/
 
 # macOS
 .DS_Store
+
+# Plugin frontend dependencies
+node_modules/
+
+# Upstream plugin bundles ship runtime wheels as source assets
+!plugins.v2/p115strmhelper/wheels/
+!plugins.v2/p115strmhelper/wheels/*.whl
+!plugins.v3/p115strmhelper/wheels/
+!plugins.v3/p115strmhelper/wheels/*.whl

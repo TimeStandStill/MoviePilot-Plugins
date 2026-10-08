@@ -1,6 +1,21 @@
 # MoviePilot-Plugins
 
-本仓库为 [MoviePilot](https://github.com/jxxghp/MoviePilot) 第三方插件库，当前提供 **今日影视更新播报** 与 **TMM 元数据转移助手** 插件。
+本仓库为 [MoviePilot](https://github.com/jxxghp/MoviePilot) 第三方插件库，当前提供 **今日影视更新播报**、**TMM 元数据转移助手** 与 **115网盘STRM助手** 插件。
+
+## 115网盘STRM助手 (P115StrmHelper)
+
+基于 [DDSRem-Dev/MoviePilot-Plugins](https://github.com/DDSRem-Dev/MoviePilot-Plugins) 的 2.8.74 版本迁移并适配 MoviePilot V3，提供 STRM 全量/增量同步、整理事件监控、分享转存、离线下载和 302 播放跳转等功能。
+
+- **原作者**：DDSRem
+- **V3 版本**：3.0.0，适用 MoviePilot V3（`>=3.0.0`，Python 3.14）。
+- **V2 原版**：2.8.74，适用 MoviePilot V2（`>=2.13.14`），独立保留用于对照。
+- **安装**：在 MoviePilot 插件市场添加本仓库地址 `https://github.com/TimeStandStill/MoviePilot-Plugins`，刷新后搜索「115网盘STRM助手」并安装，安装后重启 MoviePilot。
+- **使用文档**：[配置说明](docs/p115strmhelper/README.md)
+- **迁移记录**：[来源、目录和发布说明](docs/p115strmhelper/UPSTREAM.md)
+
+V3 插件后端位于 `plugins.v3/p115strmhelper`，前端源码位于 `frontend/p115strmhelper`。自动发布会先构建前端，再将前端资源、后端及随附依赖包一起打包。V3 整理使用宿主原生持久化队列，旧版“接管网盘整理”补丁不再启用，配置页会显示原生整理说明。
+
+验证已覆盖真实 V3 源码下的插件加载、数据库初始化与迁移、59 个 API 路由声明、STRM 本地生成、媒体身份查询和一次性调度，以及上游路径、时间、URL、Cron 与异常工具测试。真实 115 账号登录、网盘同步及 302 播放需安装后配置账号验证。
 
 ---
 

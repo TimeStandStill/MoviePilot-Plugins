@@ -3,6 +3,7 @@ name: Plugin Release
   push:
     paths:
       - 'package.v3.json'
+      - 'package.v2.json'
   workflow_dispatch:
 
 permissions:
@@ -21,6 +22,20 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y jq zip
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/p115strmhelper/package-lock.json
+
+      - name: Build 115 STRM helper frontend
+        run: |
+          npm ci --prefix frontend/p115strmhelper
+          npm run build --prefix frontend/p115strmhelper
+          cp -r frontend/p115strmhelper/dist plugins.v2/p115strmhelper/
+          cp -r frontend/p115strmhelper/dist plugins.v3/p115strmhelper/
 
       - name: Build and release changed plugins
         env:
@@ -50,10 +65,12 @@ jobs:
               plugin_version="${entry##*|}"
               plugin_id_lc="$(echo "$plugin_id" | tr '[:upper:]' '[:lower:]')"
 
-              plugin_dir="plugins.v3/${plugin_id_lc}"
+              plugin_tree="${pkg_file/package/plugins}"
+              plugin_tree="${plugin_tree%.json}"
+              plugin_dir="${plugin_tree}/${plugin_id_lc}"
 
               if [ ! -d "$plugin_dir" ]; then
-                echo "WARN: directory for $plugin_id not found under plugins.v3/, skip."
+                echo "WARN: directory $plugin_dir for $plugin_id not found, skip."
                 continue
               fi
 
@@ -102,6 +119,7 @@ jobs:
             done
           }
 
+          process_package "package.v2.json"
           process_package "package.v3.json"
 
 
